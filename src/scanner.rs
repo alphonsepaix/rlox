@@ -1,15 +1,16 @@
 use phf::phf_map;
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::iter::{Enumerate, Peekable};
 use std::str::Chars;
 
-static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
+pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "and" => TokenType::And,
     "class" => TokenType::Class,
     "else" => TokenType::Else,
     "false" => TokenType::False,
     "for" => TokenType::For,
-    "fun" => TokenType::Fn,
+    "fun" => TokenType::Fun,
     "if" => TokenType::If,
     "nil" => TokenType::Nil,
     "or" => TokenType::Or,
@@ -22,11 +23,14 @@ static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "while" => TokenType::While,
 };
 
+#[derive(Debug)]
 pub struct ErrorStruct {
     line: usize,
     col: usize,
     message: String,
 }
+
+impl Error for ErrorStruct {}
 
 pub type LoxResult<T> = Result<T, ErrorStruct>;
 
@@ -36,8 +40,8 @@ impl Display for ErrorStruct {
     }
 }
 
-#[derive(Clone, Debug)]
-enum TokenType {
+#[derive(Clone, Debug, PartialEq)]
+pub enum TokenType {
     LeftParen,
     RightParen,
     LeftBrace,
@@ -66,7 +70,7 @@ enum TokenType {
     And,
     Class,
     Else,
-    Fn,
+    Fun,
     For,
     False,
     If,
@@ -83,11 +87,12 @@ enum TokenType {
     Eof,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Token {
-    r#type: TokenType,
-    lexeme: String,
-    line: usize,
-    col: usize,
+    pub r#type: TokenType,
+    pub lexeme: String,
+    pub line: usize,
+    pub col: usize,
 }
 
 impl Display for Token {
@@ -116,12 +121,7 @@ impl<'a> Scanner<'a> {
             self.start = self.current;
             self.scan_token()?;
         }
-        self.tokens.push(Token {
-            r#type: TokenType::Eof,
-            lexeme: "".to_string(),
-            line: self.line,
-            col: self.current,
-        });
+        self.add_token(TokenType::Eof);
         Ok(())
     }
 
@@ -197,11 +197,21 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, r#type: TokenType) {
+        let mut start = self.start + 1;
+        let mut lexeme = self.source[self.start..self.current].to_owned();
+        match r#type {
+            TokenType::String(_) => start -= 1,
+            TokenType::Eof => {
+                start = self.source.len() + 1;
+                lexeme = "".to_owned();
+            }
+            _ => (),
+        }
         self.tokens.push(Token {
             r#type,
-            lexeme: self.source[self.start..self.current].to_owned(),
+            lexeme,
             line: self.line,
-            col: self.current,
+            col: start,
         });
     }
 
@@ -211,6 +221,10 @@ impl<'a> Scanner<'a> {
 
     fn peek(&mut self) -> char {
         self.stream.peek().expect("stream should not be empty").1
+    }
+
+    fn advance(&mut self) -> Option<(usize, char)> {
+        self.stream.next()
     }
 
     fn next_match(&mut self, expected: char) -> bool {
