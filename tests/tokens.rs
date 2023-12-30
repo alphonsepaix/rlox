@@ -1,4 +1,4 @@
-use claim::{assert_err, assert_ok};
+use claim::assert_ok;
 use rlox::scanner::*;
 
 #[test]
@@ -45,31 +45,35 @@ fn simple_expression_tokenized_correctly() {
 }
 
 #[test]
-#[should_panic(expected = "unterminated string")]
 fn unterminated_string_returns_error() {
     let input = r#"var name = "Alphonse"#;
     let mut scanner = Scanner::new(input);
-    scanner.scan_tokens().unwrap();
+    let err = scanner.scan_tokens().err().unwrap();
+    assert_eq!(err.r#type, ErrorType::UnterminatedString);
 }
 
 #[test]
-#[should_panic(expected = "invalid number")]
 fn invalid_number_returns_error() {
     let input = "var x = 1253.f";
     let mut scanner = Scanner::new(input);
-    scanner.scan_tokens().unwrap();
+    let err = scanner.scan_tokens().err().unwrap();
+    assert_eq!(err.r#type, ErrorType::InvalidNumber);
 }
 
 #[test]
 fn invalid_expressions_return_error() {
     let cases = [
-        "var x = 1253.f",
-        r#"var x = 12. name = "Alphonse""#,
-        "var pi = 3.l415",
-        r#"var name = "Alphonse; var x = 3.1415"#,
+        ("var x = 1253.f", ErrorType::InvalidNumber),
+        (r#"var x = 12. name = "Alphonse""#, ErrorType::InvalidNumber),
+        ("v@r pi = 3.415", ErrorType::UnexpectedCharacter),
+        (
+            r#"var name = "Alphonse; var x = 3.1415"#,
+            ErrorType::UnterminatedString,
+        ),
     ];
-    for input in cases {
+    for (input, expected_error_type) in cases {
         let mut scanner = Scanner::new(input);
-        assert_err!(scanner.scan_tokens());
+        let err = scanner.scan_tokens().err().unwrap();
+        assert_eq!(err.r#type, expected_error_type);
     }
 }

@@ -24,7 +24,7 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "while" => TokenType::While,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ErrorType {
     UnexpectedCharacter,
     InvalidNumber,
@@ -46,7 +46,7 @@ pub struct ErrorStruct {
     line: usize,
     col: usize,
     message: String,
-    r#type: ErrorType,
+    pub r#type: ErrorType,
 }
 
 impl Error for ErrorStruct {}
@@ -124,8 +124,7 @@ pub struct Token {
 
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let pos = format!("{}:{}", self.line, self.col);
-        write!(f, "{:<10} {:?} {}", pos, self.r#type, self.lexeme)
+        write!(f, "{}", self.lexeme)
     }
 }
 

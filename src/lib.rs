@@ -1,3 +1,4 @@
+pub mod grammar;
 pub mod scanner;
 
 use crate::scanner::{LoxResult, Scanner};
