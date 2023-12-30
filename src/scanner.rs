@@ -1,7 +1,7 @@
 use phf::phf_map;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use std::iter::{Enumerate, Peekable};
+use std::iter::Peekable;
 use std::str::Chars;
 
 pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
@@ -104,11 +104,12 @@ impl Display for Token {
 
 pub struct Scanner<'a> {
     source: &'a str,
-    stream: Peekable<Enumerate<Chars<'a>>>,
+    stream: Peekable<Chars<'a>>,
     tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: usize,
+    col: usize,
 }
 
 impl<'a> Scanner<'a> {
@@ -117,17 +118,16 @@ impl<'a> Scanner<'a> {
     }
 
     pub fn scan_tokens(&mut self) -> LoxResult<()> {
-        while !self.at_end() {
+        while self.peek().is_some() {
             self.start = self.current;
             self.scan_token()?;
         }
-        self.add_token(TokenType::Eof);
+        self.add_eof_token();
         Ok(())
     }
 
     fn scan_token(&mut self) -> LoxResult<()> {
-        let (i, c) = self.stream.next().expect("scanning in empty stream");
-        self.current = i + 1;
+        let c = self.advance().expect("scanning in empty stream");
         let r#type = match c {
             '(' => TokenType::LeftParen,
             ')' => TokenType::RightParen,
@@ -169,25 +169,24 @@ impl<'a> Scanner<'a> {
             }
             '/' => {
                 if self.next_match('/') {
-                    while !self.at_end() && self.peek() != '\n' {
-                        self.stream.next().unwrap();
+                    while let Some(c) = self.peek() {
+                        if c == '\n' {
+                            break;
+                        }
+                        self.advance();
                     }
                     return Ok(());
                 }
                 TokenType::Slash
             }
-            ' ' | '\r' | '\t' => return Ok(()),
-            '\n' => {
-                self.line += 1;
-                return Ok(());
-            }
+            ' ' | '\r' | '\t' | '\n' => return Ok(()),
             '"' => self.string()?,
             x if x.is_ascii_digit() => self.number()?,
             c if c.is_ascii_alphabetic() => self.identifier()?,
             _ => {
                 return Err(ErrorStruct {
                     line: self.line,
-                    col: self.current,
+                    col: self.col,
                     message: "unexpected character".to_string(),
                 })
             }
@@ -197,16 +196,8 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, r#type: TokenType) {
-        let mut start = self.start + 1;
-        let mut lexeme = self.source[self.start..self.current].to_owned();
-        match r#type {
-            TokenType::String(_) => start -= 1,
-            TokenType::Eof => {
-                start = self.source.len() + 1;
-                lexeme = "".to_owned();
-            }
-            _ => (),
-        }
+        let lexeme = self.source[self.start..self.current].to_owned();
+        let start = self.col - lexeme.len();
         self.tokens.push(Token {
             r#type,
             lexeme,
@@ -215,69 +206,90 @@ impl<'a> Scanner<'a> {
         });
     }
 
-    fn at_end(&mut self) -> bool {
-        self.stream.peek().is_none()
+    fn add_eof_token(&mut self) {
+        self.tokens.push(Token {
+            r#type: TokenType::Eof,
+            lexeme: "".to_string(),
+            line: self.line,
+            col: self.col,
+        });
     }
 
-    fn peek(&mut self) -> char {
-        self.stream.peek().expect("stream should not be empty").1
+    fn peek(&mut self) -> Option<char> {
+        self.stream.peek().cloned()
     }
 
-    fn advance(&mut self) -> Option<(usize, char)> {
-        self.stream.next()
+    fn advance(&mut self) -> Option<char> {
+        self.current += 1;
+        self.col += 1;
+        let next = self.stream.next();
+        if let Some(c) = next {
+            if c == '\n' {
+                self.line += 1;
+                self.col = 1;
+            }
+        }
+        next
     }
 
     fn next_match(&mut self, expected: char) -> bool {
-        if self.at_end() {
-            return false;
-        }
-
-        if self.peek() != expected {
-            false
-        } else {
-            self.current += 1;
-            self.stream.next().unwrap();
-            true
+        match self.peek() {
+            None => false,
+            Some(c) => {
+                if c != expected {
+                    false
+                } else {
+                    self.advance();
+                    true
+                }
+            }
         }
     }
 
     fn string(&mut self) -> LoxResult<TokenType> {
         let mut s = String::new();
-        self.start += 1;
-        while !self.at_end() && self.peek() != '"' {
-            let (i, c) = self.stream.next().unwrap();
-            self.current = i + 1;
-            s.push(c);
-            if c == '\n' {
-                self.line += 1;
+        while let Some(c) = self.peek() {
+            if c == '"' {
+                break;
             }
+            let c = self.advance().unwrap();
+            s.push(c);
         }
-        if self.at_end() {
+        if self.peek().is_none() {
             return Err(ErrorStruct {
                 line: self.line,
-                col: self.current,
+                col: self.col,
                 message: "unterminated string".to_string(),
             });
         }
-        self.stream.next().unwrap();
+        self.advance();
         Ok(TokenType::String(s))
     }
 
     fn number(&mut self) -> LoxResult<TokenType> {
-        while !self.at_end() && self.peek().is_ascii_digit() {
-            self.current = self.stream.next().unwrap().0 + 1;
+        while let Some(c) = self.peek() {
+            if !c.is_ascii_digit() {
+                break;
+            }
+            self.advance();
         }
-        if !self.at_end() && self.peek() == '.' {
-            self.stream.next().unwrap();
-            if self.at_end() || !self.peek().is_ascii_digit() {
+        if let Some('.') = self.peek() {
+            self.advance();
+            // if the stream is empty we put a random alpha character to make sure that the next test fails
+            let next = self.advance().unwrap_or('a');
+            if !next.is_ascii_digit() {
                 return Err(ErrorStruct {
                     line: self.line,
-                    col: self.current,
+                    col: self.col,
                     message: "invalid number".to_string(),
                 });
-            }
-            while !self.at_end() && self.peek().is_ascii_digit() {
-                self.current = self.stream.next().unwrap().0 + 1;
+            } else {
+                while let Some(c) = self.peek() {
+                    if !c.is_ascii_digit() {
+                        break;
+                    }
+                    self.advance();
+                }
             }
         }
         let num = self.source[self.start..self.current]
@@ -287,8 +299,11 @@ impl<'a> Scanner<'a> {
     }
 
     fn identifier(&mut self) -> LoxResult<TokenType> {
-        while !self.at_end() && self.peek().is_ascii_alphabetic() {
-            self.current = self.stream.next().unwrap().0 + 1;
+        while let Some(c) = self.peek() {
+            if !c.is_ascii_alphabetic() {
+                break;
+            }
+            self.advance();
         }
         let s = &self.source[self.start..self.current];
         let r#type = KEYWORDS
@@ -299,7 +314,7 @@ impl<'a> Scanner<'a> {
     }
 
     pub fn new(source: &'a str) -> Self {
-        let stream = source.chars().enumerate().peekable();
+        let stream = source.chars().peekable();
         Scanner {
             source,
             stream,
@@ -307,6 +322,7 @@ impl<'a> Scanner<'a> {
             start: 0,
             current: 0,
             line: 1,
+            col: 1,
         }
     }
 }

@@ -29,7 +29,7 @@ fn simple_expression_tokenized_correctly() {
         },
         Token {
             r#type: TokenType::String("Alphonse".to_string()),
-            lexeme: "Alphonse".to_string(),
+            lexeme: "\"Alphonse\"".to_string(),
             line: 1,
             col: 12,
         },

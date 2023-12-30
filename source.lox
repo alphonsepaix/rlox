@@ -1,5 +1,6 @@
 var x = 4
 name = "Alphonse"
-for (var i = 0; i < 10; i = i + 1) {
+// a comment
+for (var i = 1; i <= 10; i = i + 1) {
     print i
 }
