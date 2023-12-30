@@ -1,7 +1,7 @@
 use colored::Colorize;
 use phf::phf_map;
 use std::error::Error;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -55,14 +55,14 @@ pub type LoxResult<T> = Result<T, ErrorStruct>;
 
 impl Display for ErrorStruct {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let pos = format!("{}:{}:", self.line, self.col);
         write!(
             f,
-            "{} ({}): {} ({}:{})",
-            "error".red(),
+            "{} {} ({}) {}",
+            pos.bold(),
+            "error:".red(),
             self.r#type,
-            self.message,
-            self.line,
-            self.col
+            self.message
         )
     }
 }
@@ -114,12 +114,19 @@ pub enum TokenType {
     Eof,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct Token {
     pub r#type: TokenType,
     pub lexeme: String,
     pub line: usize,
     pub col: usize,
+}
+
+impl Debug for Token {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let pos = format!("{}:{}:", self.line, self.col);
+        write!(f, "{:<10} {:?} {}", pos, self.r#type, self.lexeme)
+    }
 }
 
 impl Display for Token {

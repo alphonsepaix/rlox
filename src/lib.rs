@@ -32,7 +32,7 @@ fn run(source: &str) -> LoxResult<()> {
     let mut scanner = Scanner::new(source);
     scanner.scan_tokens()?;
     for token in scanner.tokens() {
-        println!("{}", token);
+        println!("{:?}", token);
     }
     Ok(())
 }
