@@ -1,3 +1,4 @@
+use colored::Colorize;
 use phf::phf_map;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -24,10 +25,28 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
 };
 
 #[derive(Debug)]
+pub enum ErrorType {
+    UnexpectedCharacter,
+    InvalidNumber,
+    UnterminatedString,
+}
+
+impl Display for ErrorType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ErrorType::UnexpectedCharacter => write!(f, "unexpected character"),
+            ErrorType::InvalidNumber => write!(f, "invalid number"),
+            ErrorType::UnterminatedString => write!(f, "unterminated string"),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ErrorStruct {
     line: usize,
     col: usize,
     message: String,
+    r#type: ErrorType,
 }
 
 impl Error for ErrorStruct {}
@@ -36,7 +55,15 @@ pub type LoxResult<T> = Result<T, ErrorStruct>;
 
 impl Display for ErrorStruct {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "error: {} ({}:{})", self.message, self.line, self.col)
+        write!(
+            f,
+            "{} ({}): {} ({}:{})",
+            "error".red(),
+            self.r#type,
+            self.message,
+            self.line,
+            self.col
+        )
     }
 }
 
@@ -184,11 +211,10 @@ impl<'a> Scanner<'a> {
             x if x.is_ascii_digit() => self.number()?,
             c if c.is_ascii_alphabetic() => self.identifier()?,
             _ => {
-                return Err(ErrorStruct {
-                    line: self.line,
-                    col: self.col,
-                    message: "unexpected character".to_string(),
-                })
+                return Err(self.error(
+                    ErrorType::UnexpectedCharacter,
+                    "unexpected symbol while parsing",
+                ))
             }
         };
         self.add_token(r#type);
@@ -256,11 +282,7 @@ impl<'a> Scanner<'a> {
             s.push(c);
         }
         if self.peek().is_none() {
-            return Err(ErrorStruct {
-                line: self.line,
-                col: self.col,
-                message: "unterminated string".to_string(),
-            });
+            return Err(self.error(ErrorType::UnterminatedString, "missing \" delimiter"));
         }
         self.advance();
         Ok(TokenType::String(s))
@@ -278,11 +300,7 @@ impl<'a> Scanner<'a> {
             // if the stream is empty we put a random alpha character to make sure that the next test fails
             let next = self.advance().unwrap_or('a');
             if !next.is_ascii_digit() {
-                return Err(ErrorStruct {
-                    line: self.line,
-                    col: self.col,
-                    message: "invalid number".to_string(),
-                });
+                return Err(self.error(ErrorType::InvalidNumber, "invalid decimal part"));
             } else {
                 while let Some(c) = self.peek() {
                     if !c.is_ascii_digit() {
@@ -323,6 +341,15 @@ impl<'a> Scanner<'a> {
             current: 0,
             line: 1,
             col: 1,
+        }
+    }
+
+    fn error(&self, r#type: ErrorType, message: &str) -> ErrorStruct {
+        ErrorStruct {
+            line: self.line,
+            col: self.col,
+            message: message.to_string(),
+            r#type,
         }
     }
 }
