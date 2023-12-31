@@ -14,7 +14,6 @@ use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
-use std::mem::discriminant;
 
 #[derive(Debug)]
 pub struct RuntimeError {
@@ -46,7 +45,17 @@ use Object::*;
 
 impl Object {
     fn truthy(&self) -> bool {
-        matches!(self, Bool(false) | Nil)
+        !matches!(self, Bool(false) | Nil)
+    }
+
+    fn is_equal(&self, other: &Object) -> bool {
+        if self == &Nil && other == &Nil {
+            return true;
+        }
+        if self == &Nil {
+            return false;
+        }
+        self == other
     }
 }
 
@@ -83,7 +92,7 @@ impl Expression {
             Unary { op, right } => {
                 let right = right.evaluate()?;
                 match &op.r#type {
-                    TokenType::Bang => Ok(Bool(right.truthy())),
+                    TokenType::Bang => Ok(Bool(!right.truthy())),
                     TokenType::Minus => {
                         if let Number(x) = right {
                             Ok(Number(-x))
@@ -102,14 +111,9 @@ impl Expression {
             Binary { left, op, right } => {
                 let left = left.evaluate()?;
                 let right = right.evaluate()?;
-                if discriminant(&left) != discriminant(&right) {
-                    return Err(RuntimeError::new(
-                        "both operands must be of the same type".to_string(),
-                    ));
-                }
                 match (left, &op.r#type, right) {
-                    (left, TokenType::EqualEqual, right) => Ok(Bool(left == right)),
-                    (left, TokenType::BangEqual, right) => Ok(Bool(left != right)),
+                    (left, TokenType::EqualEqual, right) => Ok(Bool(left.is_equal(&right))),
+                    (left, TokenType::BangEqual, right) => Ok(Bool(!left.is_equal(&right))),
                     (Number(x), op, Number(y)) => match &op {
                         TokenType::Plus => Ok(Number(x + y)),
                         TokenType::Minus => Ok(Number(x - y)),
@@ -141,7 +145,10 @@ impl Expression {
                             op
                         ))),
                     },
-                    _ => Err(RuntimeError::new("can't evaluate expression".to_string())),
+                    _ => Err(RuntimeError::new(
+                        "can't evaluate expression: unsupported operation between types"
+                            .to_string(),
+                    )),
                 }
             }
             Grouping(expr) => expr.evaluate(),
