@@ -37,7 +37,7 @@ fn check_expr_representation() {
         Literal::new(Object::Number(9.89)),
     );
     let expr = Binary::new(expr1, op, expr2);
-    let repr = expr.to_string();
+    let repr = expr.print();
     assert_eq!(repr, "(== (* (- 3.14) (group 3.151)) (- 9.89))");
 }
 
