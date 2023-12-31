@@ -113,7 +113,13 @@ impl Expression {
                     (Number(x), op, Number(y)) => match &op {
                         TokenType::Plus => Ok(Number(x + y)),
                         TokenType::Minus => Ok(Number(x - y)),
-                        TokenType::Slash => Ok(Number(x / y)),
+                        TokenType::Slash => {
+                            if y == 0.0 {
+                                Err(RuntimeError::new("division by zero".to_string()))
+                            } else {
+                                Ok(Number(x / y))
+                            }
+                        }
                         TokenType::Star => Ok(Number(x * y)),
                         TokenType::Greater => Ok(Bool(x > y)),
                         TokenType::GreaterEqual => Ok(Bool(x >= y)),
