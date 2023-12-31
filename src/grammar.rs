@@ -35,8 +35,13 @@ pub enum Expression {
 }
 use Expression::*;
 
-impl Expression {
-    pub fn repr(&self) -> String {
+pub trait Representation {
+    fn repr(&self) -> String;
+    fn rpn(&self) -> String;
+}
+
+impl Representation for Expression {
+    fn repr(&self) -> String {
         match self {
             Literal(object) => match object {
                 Str(s) => s.to_owned(),
@@ -52,7 +57,7 @@ impl Expression {
         }
     }
 
-    pub fn rpn(&self) -> String {
+    fn rpn(&self) -> String {
         match self {
             Literal(_) => self.repr(),
             Unary { op, right } => format!("{}{}", op, right.rpn()),

@@ -2,7 +2,7 @@ pub mod grammar;
 pub mod parser;
 pub mod scanner;
 
-// use crate::parser::Parser;
+use crate::grammar::Representation;
 use crate::parser::Parser;
 use crate::scanner::{LoxResult, Scanner};
 use std::io::Write;
