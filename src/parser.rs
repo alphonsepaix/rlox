@@ -9,7 +9,6 @@
 //                | "(" expression ")" ;
 
 use crate::grammar::Expression::*;
-use crate::grammar::Object::*;
 use crate::grammar::*;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
@@ -63,7 +62,11 @@ impl<'a> Parser<'a> {
 
     fn equality(&mut self) -> Expression {
         let mut expr = self.comparison();
-        while self.token_match(&[TokenType::BangEqual, TokenType::EqualEqual]) {
+        while matches!(
+            self.peek_type(),
+            TokenType::BangEqual | TokenType::EqualEqual
+        ) {
+            self.advance();
             let op = self.previous().unwrap();
             let right = self.comparison();
             expr = Binary {
@@ -77,12 +80,11 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> Expression {
         let mut expr = self.term();
-        while self.token_match(&[
-            TokenType::Less,
-            TokenType::LessEqual,
-            TokenType::Greater,
-            TokenType::GreaterEqual,
-        ]) {
+        while matches!(
+            self.peek_type(),
+            TokenType::Less | TokenType::LessEqual | TokenType::Greater | TokenType::GreaterEqual
+        ) {
+            self.advance();
             let op = self.previous().unwrap();
             let right = self.term();
             expr = Binary {
@@ -96,7 +98,8 @@ impl<'a> Parser<'a> {
 
     fn term(&mut self) -> Expression {
         let mut expr = self.factor();
-        while self.token_match(&[TokenType::Minus, TokenType::Plus]) {
+        while matches!(self.peek_type(), TokenType::Minus | TokenType::Plus) {
+            self.advance();
             let op = self.previous().unwrap();
             let right = self.factor();
             expr = Binary {
@@ -110,7 +113,8 @@ impl<'a> Parser<'a> {
 
     fn factor(&mut self) -> Expression {
         let mut expr = self.unary();
-        while self.token_match(&[TokenType::Slash, TokenType::Star]) {
+        while matches!(self.peek_type(), TokenType::Slash | TokenType::Star) {
+            self.advance();
             let op = self.previous().unwrap();
             let right = self.unary();
             expr = Binary {
@@ -123,7 +127,8 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Expression {
-        if self.token_match(&[TokenType::Minus, TokenType::Bang]) {
+        if matches!(self.peek_type(), TokenType::Minus | TokenType::Bang) {
+            self.advance();
             let op = self.previous().unwrap();
             let right = self.unary();
             Unary {
@@ -136,41 +141,36 @@ impl<'a> Parser<'a> {
     }
 
     fn primary(&mut self) -> Expression {
-        if self.token_match(&[TokenType::True]) {
-            return Literal(Bool(true));
-        }
-        if self.token_match(&[TokenType::False]) {
-            return Literal(Bool(false));
-        }
-        if self.token_match(&[TokenType::Nil]) {
-            return Literal(Nil);
-        }
-        if let TokenType::Number(x) = self.peek().r#type {
-            self.advance();
-            return Literal(Number(x));
-        }
-        if let TokenType::String(s) = self.peek().r#type {
-            self.advance();
-            return Literal(Str(s));
-        }
-        if let TokenType::LeftParen = self.peek().r#type {
-            self.advance();
-            let expr = self.expression();
-            if let Err(e) = self.consume(
-                TokenType::RightParen,
-                "missing `)` after expression".to_string(),
-            ) {
-                eprintln!("error: {e}");
-                process::exit(1);
+        let token_type = self.peek_type();
+        match token_type {
+            TokenType::True
+            | TokenType::False
+            | TokenType::Nil
+            | TokenType::Number(_)
+            | TokenType::String(_) => {
+                self.advance();
+                token_type.try_into().unwrap()
             }
-            return Grouping(Box::new(expr));
+            TokenType::LeftParen => {
+                self.advance();
+                let expr = self.expression();
+                if let Err(e) = self.consume(
+                    TokenType::RightParen,
+                    "missing `)` after expression".to_string(),
+                ) {
+                    eprintln!("error: {e}");
+                    process::exit(1);
+                }
+                Grouping(Box::new(expr))
+            }
+            _ => panic!("unknown token while parsing"),
         }
-        panic!("unknown token while parsing");
     }
 
     fn consume(&mut self, token_type: TokenType, message: String) -> ParseResult {
-        if self.check(&token_type) {
-            Ok(self.advance().unwrap())
+        if self.peek_type() == token_type {
+            self.advance();
+            Ok(self.peek())
         } else {
             Err(ParseError::new(self.peek(), message))
         }
@@ -182,11 +182,11 @@ impl<'a> Parser<'a> {
         // if it was a semicolon we can synchronize directly there
         self.advance();
 
-        while !self.is_at_end() {
+        while self.peek_type() != TokenType::Eof {
             if self.previous().unwrap().r#type == TokenType::Semicolon {
                 return;
             }
-            match self.peek().r#type {
+            match self.peek_type() {
                 TokenType::Class
                 | TokenType::Fun
                 | TokenType::Var
@@ -195,44 +195,22 @@ impl<'a> Parser<'a> {
                 | TokenType::While
                 | TokenType::Print
                 | TokenType::Return => return,
-                _ => {
-                    self.advance();
-                }
+                _ => self.advance(),
             }
         }
-    }
-
-    fn token_match(&mut self, types: &[TokenType]) -> bool {
-        for token_type in types.iter() {
-            if self.check(token_type) {
-                self.advance();
-                return true;
-            }
-        }
-        false
-    }
-
-    fn check(&mut self, token_type: &TokenType) -> bool {
-        if self.is_at_end() {
-            return false;
-        }
-        &self.peek().r#type == token_type
-    }
-
-    fn is_at_end(&self) -> bool {
-        self.peek().r#type == TokenType::Eof
     }
 
     fn peek(&self) -> Token {
         self.tokens[self.current].clone()
     }
 
-    fn advance(&mut self) -> Option<Token> {
-        if !self.is_at_end() {
+    fn peek_type(&self) -> TokenType {
+        self.peek().r#type
+    }
+
+    fn advance(&mut self) {
+        if self.peek_type() != TokenType::Eof {
             self.current += 1;
-            self.previous()
-        } else {
-            None
         }
     }
 

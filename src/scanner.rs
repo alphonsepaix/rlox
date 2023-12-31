@@ -1,3 +1,6 @@
+use crate::grammar::Expression;
+use crate::grammar::Expression::Literal;
+use crate::grammar::Object::{Bool, Nil, Number, Str};
 use colored::Colorize;
 use phf::phf_map;
 use std::error::Error;
@@ -112,6 +115,21 @@ pub enum TokenType {
     While,
 
     Eof,
+}
+
+impl TryInto<Expression> for TokenType {
+    type Error = ();
+
+    fn try_into(self) -> Result<Expression, Self::Error> {
+        match self {
+            TokenType::String(s) => Ok(Literal(Str(s))),
+            TokenType::Number(x) => Ok(Literal(Number(x))),
+            TokenType::False => Ok(Literal(Bool(false))),
+            TokenType::Nil => Ok(Literal(Nil)),
+            TokenType::True => Ok(Literal(Bool(true))),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq)]
