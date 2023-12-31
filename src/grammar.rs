@@ -101,3 +101,33 @@ impl<E: Expression> Display for Grouping<E> {
         write!(f, "(group {})", self.expression)
     }
 }
+
+pub trait ReversePolishNotation {
+    fn rpn(&self) -> String;
+}
+
+impl ReversePolishNotation for Literal {
+    fn rpn(&self) -> String {
+        format!("{}", self)
+    }
+}
+
+impl<E: Expression + ReversePolishNotation> ReversePolishNotation for Unary<E> {
+    fn rpn(&self) -> String {
+        format!("{}{}", self.op, self.right.rpn())
+    }
+}
+
+impl<E1: Expression + ReversePolishNotation, E2: Expression + ReversePolishNotation>
+    ReversePolishNotation for Binary<E1, E2>
+{
+    fn rpn(&self) -> String {
+        format!("{} {} {}", self.left.rpn(), self.right.rpn(), self.op)
+    }
+}
+
+impl<E: Expression + ReversePolishNotation> ReversePolishNotation for Grouping<E> {
+    fn rpn(&self) -> String {
+        format!("{}", self.expression.rpn())
+    }
+}
