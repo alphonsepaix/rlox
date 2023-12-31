@@ -2,7 +2,6 @@ pub mod grammar;
 pub mod parser;
 pub mod scanner;
 
-use crate::grammar::Representation;
 use crate::parser::Parser;
 use crate::scanner::{ScanResult, Scanner};
 use std::io::Write;
@@ -34,14 +33,15 @@ pub fn run_prompt() {
 fn run(source: &str) -> ScanResult<()> {
     let mut scanner = Scanner::new(source);
     scanner.scan_tokens()?;
-    for token in scanner.tokens() {
-        println!("{:?}", token);
-    }
     let mut parser = Parser::new(scanner.tokens());
     let result = parser.parse();
     match result {
         Ok(expr) => {
-            println!("{}", expr.repr());
+            let eval = expr.evaluate();
+            match eval {
+                Ok(value) => println!("{}", value),
+                Err(e) => eprintln!("{e}"),
+            }
         }
         Err(e) => {
             eprintln!("{e}");

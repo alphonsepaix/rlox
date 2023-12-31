@@ -1,6 +1,5 @@
 use rlox::grammar::Expression::*;
 use rlox::grammar::Object::*;
-use rlox::grammar::Representation;
 use rlox::scanner::{Token, TokenType};
 
 #[test]

@@ -8,8 +8,8 @@
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")" ;
 
+use crate::grammar::Expression;
 use crate::grammar::Expression::*;
-use crate::grammar::*;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
