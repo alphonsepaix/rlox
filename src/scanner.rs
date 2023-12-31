@@ -28,42 +28,42 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
 };
 
 #[derive(Debug, PartialEq)]
-pub enum ErrorType {
+pub enum ScanErrorType {
     UnexpectedCharacter,
     InvalidNumber,
     UnterminatedString,
 }
 
-impl Display for ErrorType {
+impl Display for ScanErrorType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ErrorType::UnexpectedCharacter => write!(f, "unexpected character"),
-            ErrorType::InvalidNumber => write!(f, "invalid number"),
-            ErrorType::UnterminatedString => write!(f, "unterminated string"),
+            ScanErrorType::UnexpectedCharacter => write!(f, "unexpected character"),
+            ScanErrorType::InvalidNumber => write!(f, "invalid number"),
+            ScanErrorType::UnterminatedString => write!(f, "unterminated string"),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct ErrorStruct {
+pub struct ScanError {
     line: usize,
     col: usize,
     message: String,
-    pub r#type: ErrorType,
+    pub r#type: ScanErrorType,
 }
 
-impl Error for ErrorStruct {}
+impl Error for ScanError {}
 
-pub type LoxResult<T> = Result<T, ErrorStruct>;
+pub type ScanResult<T> = Result<T, ScanError>;
 
-impl Display for ErrorStruct {
+impl Display for ScanError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let pos = format!("{}:{}:", self.line, self.col);
         write!(
             f,
             "{} {} ({}) {}",
             pos.bold(),
-            "error:".red(),
+            "syntax error:".red(),
             self.r#type,
             self.message
         )
@@ -168,7 +168,7 @@ impl<'a> Scanner<'a> {
         &self.tokens
     }
 
-    pub fn scan_tokens(&mut self) -> LoxResult<()> {
+    pub fn scan_tokens(&mut self) -> ScanResult<()> {
         while self.peek().is_some() {
             self.start = self.current;
             self.scan_token()?;
@@ -177,7 +177,7 @@ impl<'a> Scanner<'a> {
         Ok(())
     }
 
-    fn scan_token(&mut self) -> LoxResult<()> {
+    fn scan_token(&mut self) -> ScanResult<()> {
         let c = self.advance().expect("scanning in empty stream");
         let r#type = match c {
             '(' => TokenType::LeftParen,
@@ -236,7 +236,7 @@ impl<'a> Scanner<'a> {
             c if c.is_ascii_alphabetic() => self.identifier()?,
             _ => {
                 return Err(self.error(
-                    ErrorType::UnexpectedCharacter,
+                    ScanErrorType::UnexpectedCharacter,
                     "unexpected symbol while parsing",
                 ))
             }
@@ -296,7 +296,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn string(&mut self) -> LoxResult<TokenType> {
+    fn string(&mut self) -> ScanResult<TokenType> {
         let mut s = String::new();
         while let Some(c) = self.peek() {
             if c == '"' {
@@ -306,13 +306,13 @@ impl<'a> Scanner<'a> {
             s.push(c);
         }
         if self.peek().is_none() {
-            return Err(self.error(ErrorType::UnterminatedString, "missing \" delimiter"));
+            return Err(self.error(ScanErrorType::UnterminatedString, "missing \" delimiter"));
         }
         self.advance();
         Ok(TokenType::String(s))
     }
 
-    fn number(&mut self) -> LoxResult<TokenType> {
+    fn number(&mut self) -> ScanResult<TokenType> {
         while let Some(c) = self.peek() {
             if !c.is_ascii_digit() {
                 break;
@@ -324,7 +324,7 @@ impl<'a> Scanner<'a> {
             // if the stream is empty we put a random alpha character to make sure that the next test fails
             let next = self.advance().unwrap_or('a');
             if !next.is_ascii_digit() {
-                return Err(self.error(ErrorType::InvalidNumber, "invalid decimal part"));
+                return Err(self.error(ScanErrorType::InvalidNumber, "invalid decimal part"));
             } else {
                 while let Some(c) = self.peek() {
                     if !c.is_ascii_digit() {
@@ -340,7 +340,7 @@ impl<'a> Scanner<'a> {
         Ok(TokenType::Number(num))
     }
 
-    fn identifier(&mut self) -> LoxResult<TokenType> {
+    fn identifier(&mut self) -> ScanResult<TokenType> {
         while let Some(c) = self.peek() {
             if !c.is_ascii_alphabetic() {
                 break;
@@ -368,8 +368,8 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn error(&self, r#type: ErrorType, message: &str) -> ErrorStruct {
-        ErrorStruct {
+    fn error(&self, r#type: ScanErrorType, message: &str) -> ScanError {
+        ScanError {
             line: self.line,
             col: self.col,
             message: message.to_string(),

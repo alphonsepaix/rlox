@@ -49,7 +49,7 @@ fn unterminated_string_returns_error() {
     let input = r#"var name = "Alphonse"#;
     let mut scanner = Scanner::new(input);
     let err = scanner.scan_tokens().err().unwrap();
-    assert_eq!(err.r#type, ErrorType::UnterminatedString);
+    assert_eq!(err.r#type, ScanErrorType::UnterminatedString);
 }
 
 #[test]
@@ -57,18 +57,21 @@ fn invalid_number_returns_error() {
     let input = "var x = 1253.f";
     let mut scanner = Scanner::new(input);
     let err = scanner.scan_tokens().err().unwrap();
-    assert_eq!(err.r#type, ErrorType::InvalidNumber);
+    assert_eq!(err.r#type, ScanErrorType::InvalidNumber);
 }
 
 #[test]
 fn invalid_expressions_return_error() {
     let cases = [
-        ("var x = 1253.f", ErrorType::InvalidNumber),
-        (r#"var x = 12. name = "Alphonse""#, ErrorType::InvalidNumber),
-        ("v@r pi = 3.415", ErrorType::UnexpectedCharacter),
+        ("var x = 1253.f", ScanErrorType::InvalidNumber),
+        (
+            r#"var x = 12. name = "Alphonse""#,
+            ScanErrorType::InvalidNumber,
+        ),
+        ("v@r pi = 3.415", ScanErrorType::UnexpectedCharacter),
         (
             r#"var name = "Alphonse; var x = 3.1415"#,
-            ErrorType::UnterminatedString,
+            ScanErrorType::UnterminatedString,
         ),
     ];
     for (input, expected_error_type) in cases {

@@ -4,7 +4,7 @@ pub mod scanner;
 
 use crate::grammar::Representation;
 use crate::parser::Parser;
-use crate::scanner::{LoxResult, Scanner};
+use crate::scanner::{ScanResult, Scanner};
 use std::io::Write;
 use std::{fs, io, process};
 
@@ -31,14 +31,21 @@ pub fn run_prompt() {
     }
 }
 
-fn run(source: &str) -> LoxResult<()> {
+fn run(source: &str) -> ScanResult<()> {
     let mut scanner = Scanner::new(source);
     scanner.scan_tokens()?;
     for token in scanner.tokens() {
         println!("{:?}", token);
     }
     let mut parser = Parser::new(scanner.tokens());
-    let expr = parser.parse();
-    println!("{}", expr.repr());
+    let result = parser.parse();
+    match result {
+        Ok(expr) => {
+            println!("{}", expr.repr());
+        }
+        Err(e) => {
+            eprintln!("{e}");
+        }
+    }
     Ok(())
 }

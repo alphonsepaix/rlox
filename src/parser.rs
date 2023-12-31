@@ -12,10 +12,11 @@ use crate::grammar::Expression::*;
 use crate::grammar::*;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
+use std::error::Error;
 use std::fmt::{Display, Formatter};
-use std::process;
 
-struct ParseError {
+#[derive(Debug)]
+pub struct ParseError {
     token: Token,
     message: String,
 }
@@ -31,16 +32,18 @@ impl Display for ParseError {
         let pos = format!("{}:{}:", self.token.line, self.token.col);
         write!(
             f,
-            "{} {} ({:?}) {}",
+            "{} {} {} (on token `{:?}`)",
             pos.bold(),
             "parsing error:".red(),
+            self.message,
             self.token.r#type,
-            self.message
         )
     }
 }
 
-type ParseResult = Result<Token, ParseError>;
+impl Error for ParseError {}
+
+type ParseResult<T> = Result<T, ParseError>;
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
@@ -52,95 +55,95 @@ impl<'a> Parser<'a> {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Expression {
+    pub fn parse(&mut self) -> ParseResult<Expression> {
         self.expression()
     }
 
-    fn expression(&mut self) -> Expression {
+    fn expression(&mut self) -> ParseResult<Expression> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Expression {
-        let mut expr = self.comparison();
+    fn equality(&mut self) -> ParseResult<Expression> {
+        let mut expr = self.comparison()?;
         while matches!(
             self.peek_type(),
             TokenType::BangEqual | TokenType::EqualEqual
         ) {
             self.advance();
             let op = self.previous().unwrap();
-            let right = self.comparison();
+            let right = self.comparison()?;
             expr = Binary {
                 left: Box::new(expr),
                 op,
                 right: Box::new(right),
             };
         }
-        expr
+        Ok(expr)
     }
 
-    fn comparison(&mut self) -> Expression {
-        let mut expr = self.term();
+    fn comparison(&mut self) -> ParseResult<Expression> {
+        let mut expr = self.term()?;
         while matches!(
             self.peek_type(),
             TokenType::Less | TokenType::LessEqual | TokenType::Greater | TokenType::GreaterEqual
         ) {
             self.advance();
             let op = self.previous().unwrap();
-            let right = self.term();
+            let right = self.term()?;
             expr = Binary {
                 left: Box::new(expr),
                 op,
                 right: Box::new(right),
             };
         }
-        expr
+        Ok(expr)
     }
 
-    fn term(&mut self) -> Expression {
-        let mut expr = self.factor();
+    fn term(&mut self) -> ParseResult<Expression> {
+        let mut expr = self.factor()?;
         while matches!(self.peek_type(), TokenType::Minus | TokenType::Plus) {
             self.advance();
             let op = self.previous().unwrap();
-            let right = self.factor();
+            let right = self.factor()?;
             expr = Binary {
                 left: Box::new(expr),
                 op,
                 right: Box::new(right),
             };
         }
-        expr
+        Ok(expr)
     }
 
-    fn factor(&mut self) -> Expression {
-        let mut expr = self.unary();
+    fn factor(&mut self) -> ParseResult<Expression> {
+        let mut expr = self.unary()?;
         while matches!(self.peek_type(), TokenType::Slash | TokenType::Star) {
             self.advance();
             let op = self.previous().unwrap();
-            let right = self.unary();
+            let right = self.unary()?;
             expr = Binary {
                 left: Box::new(expr),
                 op,
                 right: Box::new(right),
             };
         }
-        expr
+        Ok(expr)
     }
 
-    fn unary(&mut self) -> Expression {
+    fn unary(&mut self) -> ParseResult<Expression> {
         if matches!(self.peek_type(), TokenType::Minus | TokenType::Bang) {
             self.advance();
             let op = self.previous().unwrap();
-            let right = self.unary();
-            Unary {
+            let right = self.unary()?;
+            Ok(Unary {
                 op,
                 right: Box::new(right),
-            }
+            })
         } else {
             self.primary()
         }
     }
 
-    fn primary(&mut self) -> Expression {
+    fn primary(&mut self) -> ParseResult<Expression> {
         let token_type = self.peek_type();
         match token_type {
             TokenType::True
@@ -149,25 +152,25 @@ impl<'a> Parser<'a> {
             | TokenType::Number(_)
             | TokenType::String(_) => {
                 self.advance();
-                token_type.try_into().unwrap()
+                Ok(token_type.try_into().unwrap())
             }
             TokenType::LeftParen => {
                 self.advance();
-                let expr = self.expression();
-                if let Err(e) = self.consume(
+                let expr = self.expression()?;
+                self.consume(
                     TokenType::RightParen,
                     "missing `)` after expression".to_string(),
-                ) {
-                    eprintln!("error: {e}");
-                    process::exit(1);
-                }
-                Grouping(Box::new(expr))
+                )?;
+                Ok(Grouping(Box::new(expr)))
             }
-            _ => panic!("unknown token while parsing"),
+            _ => Err(ParseError::new(
+                self.peek(),
+                "unexpected token while parsing".to_string(),
+            )),
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, message: String) -> ParseResult {
+    fn consume(&mut self, token_type: TokenType, message: String) -> ParseResult<Token> {
         if self.peek_type() == token_type {
             self.advance();
             Ok(self.peek())
