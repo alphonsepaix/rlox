@@ -136,28 +136,36 @@ impl<'a> Parser<'a> {
     }
 
     fn primary(&mut self) -> Expression {
-        match self.peek().r#type {
-            TokenType::True
-            | TokenType::False
-            | TokenType::String(s)
-            | TokenType::Nil
-            | TokenType::Number(x) => {
-                self.advance();
-            }
-            TokenType::LeftParen => {
-                self.advance();
-                let expr = self.expression();
-                if let Err(e) = self.consume(
-                    TokenType::RightParen,
-                    "missing `)` after expression".to_string(),
-                ) {
-                    eprintln!("error: {e}");
-                    process::exit(1);
-                }
-                Grouping(Box::new(expr))
-            }
-            _ => panic!("unexpected token while parsing"),
+        if self.token_match(&[TokenType::True]) {
+            return Literal(Bool(true));
         }
+        if self.token_match(&[TokenType::False]) {
+            return Literal(Bool(false));
+        }
+        if self.token_match(&[TokenType::Nil]) {
+            return Literal(Nil);
+        }
+        if let TokenType::Number(x) = self.peek().r#type {
+            self.advance();
+            return Literal(Number(x));
+        }
+        if let TokenType::String(s) = self.peek().r#type {
+            self.advance();
+            return Literal(Str(s));
+        }
+        if let TokenType::LeftParen = self.peek().r#type {
+            self.advance();
+            let expr = self.expression();
+            if let Err(e) = self.consume(
+                TokenType::RightParen,
+                "missing `)` after expression".to_string(),
+            ) {
+                eprintln!("error: {e}");
+                process::exit(1);
+            }
+            return Grouping(Box::new(expr));
+        }
+        panic!("unknown token while parsing");
     }
 
     fn consume(&mut self, token_type: TokenType, message: String) -> ParseResult {

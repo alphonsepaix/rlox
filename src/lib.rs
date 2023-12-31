@@ -39,6 +39,6 @@ fn run(source: &str) -> LoxResult<()> {
     }
     let mut parser = Parser::new(scanner.tokens());
     let expr = parser.parse();
-    println!("{}", expr.rpn());
+    println!("{}", expr.repr());
     Ok(())
 }
