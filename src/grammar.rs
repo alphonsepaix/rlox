@@ -13,101 +13,53 @@
 use crate::scanner::Token;
 
 pub enum Object {
-    String(String),
+    Str(String),
     Number(f64),
     Bool(bool),
     Nil,
 }
 
-pub struct Literal {
-    value: Object,
+use Object::*;
+
+pub enum Expression {
+    Literal(Object),
+    Unary {
+        op: Token,
+        right: Box<Expression>,
+    },
+    Binary {
+        left: Box<Expression>,
+        op: Token,
+        right: Box<Expression>,
+    },
+    Grouping(Box<Expression>),
 }
 
-impl Literal {
-    pub fn new(value: Object) -> Self {
-        Self { value }
-    }
-}
-
-pub struct Unary<E: Expression> {
-    op: Token,
-    right: E,
-}
-
-impl<E: Expression> Unary<E> {
-    pub fn new(op: Token, right: E) -> Self {
-        Self { op, right }
-    }
-}
-
-pub struct Binary<E1: Expression, E2: Expression> {
-    left: E1,
-    op: Token,
-    right: E2,
-}
-
-impl<E1: Expression, E2: Expression> Binary<E1, E2> {
-    pub fn new(left: E1, op: Token, right: E2) -> Self {
-        Self { left, op, right }
-    }
-}
-
-pub struct Grouping<E: Expression> {
-    expression: E,
-}
-
-impl<E: Expression> Grouping<E> {
-    pub fn new(expression: E) -> Self {
-        Self { expression }
-    }
-}
-
-pub trait Expression {
-    fn print(&self) -> String;
-    fn rpn(&self) -> String;
-}
-
-impl Expression for Literal {
-    fn print(&self) -> String {
-        match &self.value {
-            Object::String(s) => s.to_owned(),
-            Object::Bool(b) => b.to_string(),
-            Object::Number(x) => x.to_string(),
-            Object::Nil => "nil".to_string(),
+impl Expression {
+    pub fn repr(&self) -> String {
+        match self {
+            Expression::Literal(object) => match object {
+                Str(s) => s.to_owned(),
+                Bool(b) => b.to_string(),
+                Number(x) => x.to_string(),
+                Nil => "nil".to_string(),
+            },
+            Expression::Unary { op, right } => format!("({} {})", op, right.repr()),
+            Expression::Binary { left, op, right } => {
+                format!("({} {} {})", op, left.repr(), right.repr())
+            }
+            Expression::Grouping(expression) => format!("(group {})", expression.repr()),
         }
     }
 
-    fn rpn(&self) -> String {
-        self.print()
-    }
-}
-
-impl<E: Expression> Expression for Unary<E> {
-    fn print(&self) -> String {
-        format!("({} {})", self.op, self.right.print())
-    }
-
-    fn rpn(&self) -> String {
-        format!("{}{}", self.op, self.right.rpn())
-    }
-}
-
-impl<E1: Expression, E2: Expression> Expression for Binary<E1, E2> {
-    fn print(&self) -> String {
-        format!("({} {} {})", self.op, self.left.print(), self.right.print())
-    }
-
-    fn rpn(&self) -> String {
-        format!("{} {} {}", self.left.rpn(), self.right.rpn(), self.op)
-    }
-}
-
-impl<E: Expression> Expression for Grouping<E> {
-    fn print(&self) -> String {
-        format!("(group {})", self.expression.print())
-    }
-
-    fn rpn(&self) -> String {
-        self.expression.rpn()
+    pub fn rpn(&self) -> String {
+        match self {
+            Expression::Literal(_) => self.repr(),
+            Expression::Unary { op, right } => format!("{}{}", op, right.rpn()),
+            Expression::Binary { left, op, right } => {
+                format!("{} {} {}", left.rpn(), right.rpn(), op)
+            }
+            Expression::Grouping(expression) => expression.rpn(),
+        }
     }
 }
