@@ -114,7 +114,7 @@ pub enum TokenType {
     Eof,
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Token {
     pub r#type: TokenType,
     pub lexeme: String,

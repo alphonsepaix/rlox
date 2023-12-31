@@ -1,6 +1,8 @@
 pub mod grammar;
+pub mod parser;
 pub mod scanner;
 
+use crate::parser::Parser;
 use crate::scanner::{LoxResult, Scanner};
 use std::io::Write;
 use std::{fs, io, process};
@@ -34,5 +36,8 @@ fn run(source: &str) -> LoxResult<()> {
     for token in scanner.tokens() {
         println!("{:?}", token);
     }
+    let mut parser = Parser::new(scanner.tokens());
+    let expr = parser.parse();
+    println!("{expr}");
     Ok(())
 }
