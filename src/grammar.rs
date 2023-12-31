@@ -18,7 +18,6 @@ pub enum Object {
     Bool(bool),
     Nil,
 }
-
 use Object::*;
 
 pub enum Expression {
@@ -34,32 +33,33 @@ pub enum Expression {
     },
     Grouping(Box<Expression>),
 }
+use Expression::*;
 
 impl Expression {
     pub fn repr(&self) -> String {
         match self {
-            Expression::Literal(object) => match object {
+            Literal(object) => match object {
                 Str(s) => s.to_owned(),
                 Bool(b) => b.to_string(),
                 Number(x) => x.to_string(),
                 Nil => "nil".to_string(),
             },
-            Expression::Unary { op, right } => format!("({} {})", op, right.repr()),
-            Expression::Binary { left, op, right } => {
+            Unary { op, right } => format!("({} {})", op, right.repr()),
+            Binary { left, op, right } => {
                 format!("({} {} {})", op, left.repr(), right.repr())
             }
-            Expression::Grouping(expression) => format!("(group {})", expression.repr()),
+            Grouping(expression) => format!("(group {})", expression.repr()),
         }
     }
 
     pub fn rpn(&self) -> String {
         match self {
-            Expression::Literal(_) => self.repr(),
-            Expression::Unary { op, right } => format!("{}{}", op, right.rpn()),
-            Expression::Binary { left, op, right } => {
+            Literal(_) => self.repr(),
+            Unary { op, right } => format!("{}{}", op, right.rpn()),
+            Binary { left, op, right } => {
                 format!("{} {} {}", left.rpn(), right.rpn(), op)
             }
-            Expression::Grouping(expression) => expression.rpn(),
+            Grouping(expression) => expression.rpn(),
         }
     }
 }
