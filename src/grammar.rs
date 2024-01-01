@@ -25,6 +25,7 @@ impl RuntimeError {
         Self { message }
     }
 }
+
 impl Error for RuntimeError {}
 
 pub type RuntimeResult<T> = Result<T, RuntimeError>;
@@ -34,6 +35,7 @@ impl Display for RuntimeError {
         write!(f, "{} {}", "runtime error:".red(), self.message)
     }
 }
+
 #[derive(PartialEq, Clone, Debug)]
 pub enum Object {
     Str(String),
@@ -41,6 +43,7 @@ pub enum Object {
     Bool(bool),
     Nil,
 }
+
 use Object::*;
 
 impl Object {
@@ -188,29 +191,6 @@ impl Expression {
             }
             Grouping(expression) => expression.rpn(),
             Assign(_, expression) => expression.rpn(),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Stmt {
-    Var {
-        name: String,
-        initializer: Option<Expression>,
-    },
-    Print(Expression),
-    Expr(Expression),
-}
-
-impl Stmt {
-    pub fn expression(&self) -> &Expression {
-        match self {
-            Stmt::Print(expr) => expr,
-            Stmt::Expr(expr) => expr,
-            Stmt::Var {
-                name: _,
-                initializer,
-            } => initializer.as_ref().unwrap_or(&Expression::Literal(Nil)),
         }
     }
 }

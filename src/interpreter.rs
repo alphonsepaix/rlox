@@ -1,14 +1,8 @@
-use crate::grammar::{Object, RuntimeError, RuntimeResult, Stmt};
-use std::collections::HashMap;
+use crate::grammar::{Expression, Object, RuntimeError, RuntimeResult};
+use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug)]
-pub struct Environment(HashMap<String, Object>);
-
-impl Environment {
-    pub fn new() -> Self {
-        Self(HashMap::new())
-    }
-}
+pub struct Environment(VecDeque<HashMap<String, Object>>);
 
 impl Default for Environment {
     fn default() -> Self {
@@ -17,16 +11,45 @@ impl Default for Environment {
 }
 
 impl Environment {
+    pub fn new() -> Self {
+        Self(VecDeque::from_iter([HashMap::new()]))
+    }
+
     pub fn define(&mut self, name: &str, value: Object) {
-        self.0.insert(name.to_string(), value);
+        self.0
+            .front_mut()
+            .expect("no environment were found")
+            .insert(name.to_string(), value);
     }
 
     pub fn get(&self, name: &str) -> RuntimeResult<&Object> {
-        match self.0.get(name) {
-            None => Err(RuntimeError::new(format!("name `{name}` is not defined"))),
-            Some(obj) => Ok(obj),
+        for env in &self.0 {
+            if let Some(obj) = env.get(name) {
+                return Ok(obj);
+            }
         }
+
+        Err(RuntimeError::new(format!("name `{name}` is not defined")))
     }
+
+    pub fn enter_block(&mut self) {
+        self.0.push_front(HashMap::new());
+    }
+
+    pub fn exit_block(&mut self) {
+        self.0.pop_front();
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Stmt {
+    Var {
+        name: String,
+        initializer: Option<Expression>,
+    },
+    Print(Expression),
+    Expr(Expression),
+    Block(Vec<Stmt>),
 }
 
 pub struct Interpreter(Vec<Stmt>);
@@ -36,13 +59,26 @@ impl Interpreter {
         Self(statements)
     }
 
-    pub fn execute(&mut self, statement: Stmt, env: &mut Environment) -> RuntimeResult<()> {
-        let eval = statement.expression().evaluate(env)?;
+    #[allow(clippy::only_used_in_recursion)]
+    pub fn execute(&mut self, statement: &Stmt, env: &mut Environment) -> RuntimeResult<()> {
         match &statement {
-            Stmt::Var { name, .. } => env.define(name, eval),
+            Stmt::Var { name, initializer } => {
+                let eval = initializer
+                    .as_ref()
+                    .unwrap_or(&Expression::Literal(Object::Nil))
+                    .evaluate(env)?;
+                env.define(name, eval);
+            }
+            Stmt::Block(v) => {
+                env.enter_block();
+                for s in v {
+                    self.execute(s, env)?;
+                }
+                env.exit_block();
+            }
             _ => {
-                if let Stmt::Print(_) = statement {
-                    println!("{eval}");
+                if let Stmt::Print(expression) = statement {
+                    println!("{}", expression.evaluate(env)?);
                 }
             }
         }
@@ -51,7 +87,7 @@ impl Interpreter {
 
     pub fn interpret(&mut self, env: &mut Environment) {
         for statement in self.0.clone() {
-            let eval = self.execute(statement, env);
+            let eval = self.execute(&statement, env);
             if let Err(e) = eval {
                 eprintln!("{e}");
             }

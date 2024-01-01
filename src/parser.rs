@@ -5,9 +5,11 @@
 // varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 //
 // statement      → exprStmt
-//                | printStmt ;
+//                | printStmt
+//                | block ;
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
+// block          → "{" declaration* "}" ;
 //
 // expression     → assignment ;
 // assignment     → IDENTIFIER "=" assignment
@@ -24,7 +26,7 @@
 
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
-use crate::grammar::Stmt;
+use crate::interpreter::Stmt;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -113,12 +115,31 @@ impl<'a> Parser<'a> {
     }
 
     fn statement(&mut self) -> ParseResult<Stmt> {
-        if self.peek_type() == TokenType::Print {
-            self.advance();
-            self.print_statement()
-        } else {
-            self.expr_statement()
+        match self.peek_type() {
+            TokenType::Print => {
+                self.advance();
+                self.print_statement()
+            }
+            TokenType::LeftBrace => {
+                self.advance();
+                self.block().map(Stmt::Block)
+            }
+            _ => self.expr_statement(),
         }
+    }
+
+    fn block(&mut self) -> ParseResult<Vec<Stmt>> {
+        let mut statements = vec![];
+
+        while self.peek_type() != TokenType::Eof && self.peek_type() != TokenType::RightBrace {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(
+            TokenType::RightBrace,
+            "expected `}` after block".to_string(),
+        )?;
+        Ok(statements)
     }
 
     fn print_statement(&mut self) -> ParseResult<Stmt> {
