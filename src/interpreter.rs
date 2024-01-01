@@ -1,3 +1,4 @@
+use crate::grammar::Expression::Assign;
 use crate::grammar::{Expression, Object, RuntimeError, RuntimeResult};
 use std::collections::{HashMap, VecDeque};
 
@@ -52,11 +53,22 @@ pub enum Stmt {
     Block(Vec<Stmt>),
 }
 
-pub struct Interpreter(Vec<Stmt>);
+pub enum Context {
+    Repl,
+    File,
+}
+
+pub struct Interpreter {
+    statements: Vec<Stmt>,
+    context: Context,
+}
 
 impl Interpreter {
-    pub fn new(statements: Vec<Stmt>) -> Self {
-        Self(statements)
+    pub fn new(statements: Vec<Stmt>, context: Context) -> Self {
+        Self {
+            statements,
+            context,
+        }
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -78,14 +90,17 @@ impl Interpreter {
             }
             Stmt::Print(expression) => println!("{}", expression.evaluate(env)?),
             Stmt::Expr(expression) => {
-                expression.evaluate(env)?;
+                let eval = expression.evaluate(env)?;
+                if matches!(self.context, Context::Repl) && !matches!(expression, Assign(..)) {
+                    println!("{eval}");
+                }
             }
         }
         Ok(())
     }
 
     pub fn interpret(&mut self, env: &mut Environment) {
-        for statement in self.0.clone() {
+        for statement in self.statements.clone() {
             let eval = self.execute(&statement, env);
             if let Err(e) = eval {
                 eprintln!("{e}");
