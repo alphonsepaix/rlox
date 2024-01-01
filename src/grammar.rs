@@ -159,11 +159,17 @@ impl Expression {
                 }
             }
             Grouping(expr) => expr.evaluate(env),
-            Variable(name) => env.get(name).cloned(),
+            Variable(name) => env
+                .get(name)?
+                .as_ref()
+                .ok_or(RuntimeError::new(format!(
+                    "variable `{name}` used uninitialized"
+                )))
+                .cloned(),
             Assign(name, expr) => {
                 env.get(name)?;
                 let eval = expr.evaluate(env)?;
-                env.define(name, eval.clone());
+                env.define(name, Some(eval.clone()));
                 Ok(eval)
             }
         }

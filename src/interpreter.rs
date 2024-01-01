@@ -2,7 +2,7 @@ use crate::grammar::{Expression, Object, RuntimeError, RuntimeResult};
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug)]
-pub struct Environment(VecDeque<HashMap<String, Object>>);
+pub struct Environment(VecDeque<HashMap<String, Option<Object>>>);
 
 impl Default for Environment {
     fn default() -> Self {
@@ -15,14 +15,14 @@ impl Environment {
         Self(VecDeque::from_iter([HashMap::new()]))
     }
 
-    pub fn define(&mut self, name: &str, value: Object) {
+    pub fn define(&mut self, name: &str, value: Option<Object>) {
         self.0
             .front_mut()
             .expect("no environment were found")
             .insert(name.to_string(), value);
     }
 
-    pub fn get(&self, name: &str) -> RuntimeResult<&Object> {
+    pub fn get(&self, name: &str) -> RuntimeResult<&Option<Object>> {
         for env in &self.0 {
             if let Some(obj) = env.get(name) {
                 return Ok(obj);
@@ -65,8 +65,8 @@ impl Interpreter {
             Stmt::Var { name, initializer } => {
                 let eval = initializer
                     .as_ref()
-                    .unwrap_or(&Expression::Literal(Object::Nil))
-                    .evaluate(env)?;
+                    .map(|expr| expr.evaluate(env))
+                    .transpose()?;
                 env.define(name, eval);
             }
             Stmt::Block(v) => {
