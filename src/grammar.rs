@@ -84,12 +84,13 @@ pub enum Expression {
     },
     Grouping(Box<Expression>),
     Variable(String),
+    Assign(String, Box<Expression>),
 }
 use crate::interpreter::Environment;
 use Expression::*;
 
 impl Expression {
-    pub fn evaluate(&self, env: &Environment) -> RuntimeResult<Object> {
+    pub fn evaluate(&self, env: &mut Environment) -> RuntimeResult<Object> {
         match self {
             Literal(object) => Ok(object.clone()),
             Unary { op, right } => {
@@ -156,6 +157,12 @@ impl Expression {
             }
             Grouping(expr) => expr.evaluate(env),
             Variable(name) => env.get(name).cloned(),
+            Assign(name, expr) => {
+                env.get(name)?;
+                let eval = expr.evaluate(env)?;
+                env.define(name, eval.clone());
+                Ok(eval)
+            }
         }
     }
 
@@ -168,6 +175,7 @@ impl Expression {
             }
             Grouping(expression) => format!("(group {})", expression.repr()),
             Variable(name) => name.to_owned(),
+            Assign(_, expression) => expression.repr(),
         }
     }
 
@@ -179,6 +187,7 @@ impl Expression {
                 format!("{} {} {}", left.rpn(), right.rpn(), op)
             }
             Grouping(expression) => expression.rpn(),
+            Assign(_, expression) => expression.rpn(),
         }
     }
 }

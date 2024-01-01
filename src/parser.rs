@@ -9,7 +9,9 @@
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
 //
-// expression     → equality ;
+// expression     → assignment ;
+// assignment     → IDENTIFIER "=" assignment
+//                | equality ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term           → factor ( ( "-" | "+" ) factor )* ;
@@ -135,7 +137,25 @@ impl<'a> Parser<'a> {
     }
 
     fn expression(&mut self) -> ParseResult<Expression> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> ParseResult<Expression> {
+        let expr = self.equality()?;
+        if self.peek_type() == TokenType::Equal {
+            if let Variable(name) = expr {
+                self.advance();
+                let value = self.assignment()?;
+                Ok(Assign(name, Box::new(value)))
+            } else {
+                Err(ParseError::new(
+                    self.peek(),
+                    "invalid assignment target".to_string(),
+                ))
+            }
+        } else {
+            Ok(expr)
+        }
     }
 
     fn equality(&mut self) -> ParseResult<Expression> {
