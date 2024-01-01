@@ -36,11 +36,12 @@ fn run(source: &str) -> ScanResult<()> {
     let mut parser = Parser::new(scanner.tokens());
     let result = parser.parse();
     match result {
-        Ok(expr) => {
-            let eval = expr.evaluate();
-            match eval {
-                Ok(value) => println!("{}", value),
-                Err(e) => eprintln!("{e}"),
+        Ok(statements) => {
+            for statement in statements {
+                let eval = statement.execute();
+                if let Err(e) = eval {
+                    eprintln!("{e}");
+                }
             }
         }
         Err(e) => {

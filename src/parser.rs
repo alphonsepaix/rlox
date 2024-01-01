@@ -1,3 +1,11 @@
+// program        → statement* EOF ;
+//
+// statement      → exprStmt
+//                | printStmt ;
+//
+// exprStmt       → expression ";" ;
+// printStmt      → "print" expression ";" ;
+//
 // expression     → equality ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
@@ -10,6 +18,7 @@
 
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
+use crate::grammar::Stmt;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -55,8 +64,34 @@ impl<'a> Parser<'a> {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> ParseResult<Expression> {
-        self.expression()
+    pub fn parse(&mut self) -> ParseResult<Vec<Stmt>> {
+        let mut statements = vec![];
+        while self.peek_type() != TokenType::Eof {
+            statements.push(self.statement()?);
+        }
+        Ok(statements)
+    }
+
+    fn statement(&mut self) -> ParseResult<Stmt> {
+        if self.peek_type() == TokenType::Print {
+            self.advance();
+            self.print_statement()
+        } else {
+            self.expr_statement()
+        }
+    }
+    fn print_statement(&mut self) -> ParseResult<Stmt> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "expected `;` after value".to_string())?;
+        Ok(Stmt::Print(expr))
+    }
+    fn expr_statement(&mut self) -> ParseResult<Stmt> {
+        let expr = self.expression()?;
+        self.consume(
+            TokenType::Semicolon,
+            "expected `;` after expression".to_string(),
+        )?;
+        Ok(Stmt::Expr(expr))
     }
 
     fn expression(&mut self) -> ParseResult<Expression> {

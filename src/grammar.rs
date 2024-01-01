@@ -27,7 +27,7 @@ impl RuntimeError {
 }
 impl Error for RuntimeError {}
 
-pub type EvaluationResult = Result<Object, RuntimeError>;
+pub type RuntimeResult<T> = Result<T, RuntimeError>;
 
 impl Display for RuntimeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -86,7 +86,7 @@ pub enum Expression {
 use Expression::*;
 
 impl Expression {
-    pub fn evaluate(&self) -> EvaluationResult {
+    pub fn evaluate(&self) -> RuntimeResult<Object> {
         match self {
             Literal(object) => Ok(object.clone()),
             Unary { op, right } => {
@@ -175,5 +175,27 @@ impl Expression {
             }
             Grouping(expression) => expression.rpn(),
         }
+    }
+}
+
+pub enum Stmt {
+    Print(Expression),
+    Expr(Expression),
+}
+
+impl Stmt {
+    fn expression(&self) -> &Expression {
+        match self {
+            Stmt::Print(expr) => expr,
+            Stmt::Expr(expr) => expr,
+        }
+    }
+
+    pub fn execute(&self) -> RuntimeResult<()> {
+        let eval = self.expression().evaluate()?;
+        if let Stmt::Print(_) = self {
+            println!("{eval}");
+        }
+        Ok(())
     }
 }
