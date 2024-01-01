@@ -76,10 +76,9 @@ impl Interpreter {
                 }
                 env.exit_block();
             }
-            _ => {
-                if let Stmt::Print(expression) = statement {
-                    println!("{}", expression.evaluate(env)?);
-                }
+            Stmt::Print(expression) => println!("{}", expression.evaluate(env)?),
+            Stmt::Expr(expression) => {
+                expression.evaluate(env)?;
             }
         }
         Ok(())
