@@ -21,7 +21,7 @@ pub struct RuntimeError {
 }
 
 impl RuntimeError {
-    fn new(message: String) -> Self {
+    pub fn new(message: String) -> Self {
         Self { message }
     }
 }
@@ -34,7 +34,7 @@ impl Display for RuntimeError {
         write!(f, "{} {}", "runtime error:".red(), self.message)
     }
 }
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Object {
     Str(String),
     Number(f64),
@@ -70,6 +70,7 @@ impl Display for Object {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum Expression {
     Literal(Object),
     Unary {
@@ -82,15 +83,17 @@ pub enum Expression {
         right: Box<Expression>,
     },
     Grouping(Box<Expression>),
+    Variable(String),
 }
+use crate::interpreter::Environment;
 use Expression::*;
 
 impl Expression {
-    pub fn evaluate(&self) -> RuntimeResult<Object> {
+    pub fn evaluate(&self, env: &Environment) -> RuntimeResult<Object> {
         match self {
             Literal(object) => Ok(object.clone()),
             Unary { op, right } => {
-                let right = right.evaluate()?;
+                let right = right.evaluate(env)?;
                 match &op.r#type {
                     TokenType::Bang => Ok(Bool(!right.truthy())),
                     TokenType::Minus => {
@@ -109,8 +112,8 @@ impl Expression {
                 }
             }
             Binary { left, op, right } => {
-                let left = left.evaluate()?;
-                let right = right.evaluate()?;
+                let left = left.evaluate(env)?;
+                let right = right.evaluate(env)?;
                 match (left, &op.r#type, right) {
                     (left, TokenType::EqualEqual, right) => Ok(Bool(left.is_equal(&right))),
                     (left, TokenType::BangEqual, right) => Ok(Bool(!left.is_equal(&right))),
@@ -151,7 +154,8 @@ impl Expression {
                     )),
                 }
             }
-            Grouping(expr) => expr.evaluate(),
+            Grouping(expr) => expr.evaluate(env),
+            Variable(name) => env.get(name).cloned(),
         }
     }
 
@@ -163,12 +167,13 @@ impl Expression {
                 format!("({} {} {})", op, left.repr(), right.repr())
             }
             Grouping(expression) => format!("(group {})", expression.repr()),
+            Variable(name) => name.to_owned(),
         }
     }
 
     pub fn rpn(&self) -> String {
         match self {
-            Literal(_) => self.repr(),
+            Literal(_) | Variable(_) => self.repr(),
             Unary { op, right } => format!("{}{}", op, right.rpn()),
             Binary { left, op, right } => {
                 format!("{} {} {}", left.rpn(), right.rpn(), op)
@@ -178,24 +183,25 @@ impl Expression {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum Stmt {
+    Var {
+        name: String,
+        initializer: Option<Expression>,
+    },
     Print(Expression),
     Expr(Expression),
 }
 
 impl Stmt {
-    fn expression(&self) -> &Expression {
+    pub fn expression(&self) -> &Expression {
         match self {
             Stmt::Print(expr) => expr,
             Stmt::Expr(expr) => expr,
+            Stmt::Var {
+                name: _,
+                initializer,
+            } => initializer.as_ref().unwrap_or(&Expression::Literal(Nil)),
         }
-    }
-
-    pub fn execute(&self) -> RuntimeResult<()> {
-        let eval = self.expression().evaluate()?;
-        if let Stmt::Print(_) = self {
-            println!("{eval}");
-        }
-        Ok(())
     }
 }

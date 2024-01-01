@@ -1,8 +1,11 @@
-// program        → statement* EOF ;
+// program        → declaration* EOF ;
+
+// declaration    → varDecl
+//                | statement ;
+// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 //
 // statement      → exprStmt
 //                | printStmt ;
-//
 // exprStmt       → expression ";" ;
 // printStmt      → "print" expression ";" ;
 //
@@ -14,7 +17,8 @@
 // unary          → ( "!" | "-" ) unary
 //                | primary ;
 // primary        → NUMBER | STRING | "true" | "false" | "nil"
-//                | "(" expression ")" ;
+//                | "(" expression ")"
+//                | IDENTIFIER ;
 
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
@@ -67,9 +71,43 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> ParseResult<Vec<Stmt>> {
         let mut statements = vec![];
         while self.peek_type() != TokenType::Eof {
-            statements.push(self.statement()?);
+            statements.push(self.declaration()?);
         }
         Ok(statements)
+    }
+
+    fn declaration(&mut self) -> ParseResult<Stmt> {
+        let statement = if self.peek_type() == TokenType::Var {
+            self.advance();
+            self.var_declaration()
+        } else {
+            self.statement()
+        };
+        statement.map_err(|e| {
+            self.synchronize();
+            e
+        })
+    }
+
+    fn var_declaration(&mut self) -> ParseResult<Stmt> {
+        if let TokenType::Identifier(name) = self.peek_type() {
+            self.advance();
+            let mut initializer: Option<Expression> = None;
+            if self.peek_type() == TokenType::Equal {
+                self.advance();
+                initializer = Some(self.expression()?);
+            }
+            self.consume(
+                TokenType::Semicolon,
+                "expected `;` after variable declaration".to_string(),
+            )?;
+            Ok(Stmt::Var { name, initializer })
+        } else {
+            Err(ParseError::new(
+                self.peek(),
+                "expected variable name".to_string(),
+            ))
+        }
     }
 
     fn statement(&mut self) -> ParseResult<Stmt> {
@@ -80,11 +118,13 @@ impl<'a> Parser<'a> {
             self.expr_statement()
         }
     }
+
     fn print_statement(&mut self) -> ParseResult<Stmt> {
         let expr = self.expression()?;
         self.consume(TokenType::Semicolon, "expected `;` after value".to_string())?;
         Ok(Stmt::Print(expr))
     }
+
     fn expr_statement(&mut self) -> ParseResult<Stmt> {
         let expr = self.expression()?;
         self.consume(
@@ -198,6 +238,10 @@ impl<'a> Parser<'a> {
                 )?;
                 Ok(Grouping(Box::new(expr)))
             }
+            TokenType::Identifier(name) => {
+                self.advance();
+                Ok(Variable(name))
+            }
             _ => Err(ParseError::new(
                 self.peek(),
                 "unexpected token while parsing".to_string(),
@@ -214,10 +258,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    #[allow(dead_code)]
     fn synchronize(&mut self) {
-        // consuming the problematic token
-        // if it was a semicolon we can synchronize directly there
         self.advance();
 
         while self.peek_type() != TokenType::Eof {
