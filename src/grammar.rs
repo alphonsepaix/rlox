@@ -88,6 +88,11 @@ pub enum Expression {
     Grouping(Box<Expression>),
     Variable(String),
     Assign(String, Box<Expression>),
+    Logical {
+        left: Box<Expression>,
+        op: Token,
+        right: Box<Expression>,
+    },
 }
 use crate::interpreter::Environment;
 use Expression::*;
@@ -172,6 +177,19 @@ impl Expression {
                 env.define(name, Some(eval.clone()));
                 Ok(eval)
             }
+            Logical { left, op, right } => {
+                let left = left.evaluate(env)?;
+                if let TokenType::Or = op.r#type {
+                    if left.truthy() {
+                        return Ok(Bool(true));
+                    }
+                } else {
+                    if !left.truthy() {
+                        return Ok(Bool(false));
+                    }
+                }
+                Ok(Bool(right.evaluate(env)?.truthy()))
+            }
         }
     }
 
@@ -185,6 +203,7 @@ impl Expression {
             Grouping(expression) => format!("(group {})", expression.repr()),
             Variable(name) => name.to_owned(),
             Assign(_, expression) => expression.repr(),
+            Logical { .. } => todo!(),
         }
     }
 
@@ -197,6 +216,7 @@ impl Expression {
             }
             Grouping(expression) => expression.rpn(),
             Assign(_, expression) => expression.rpn(),
+            Logical { .. } => todo!(),
         }
     }
 }

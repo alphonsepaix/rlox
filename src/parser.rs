@@ -16,7 +16,9 @@
 //
 // expression     → assignment ;
 // assignment     → IDENTIFIER "=" assignment
-//                | equality ;
+//                | logic_or ;
+// logic_or       → logic_and ( "or" logic_and )* ;
+// logic_and      → equality ( "and" equality )* ;
 // equality       → comparison ( ( "!=" | "==" ) comparison )* ;
 // comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
 // term           → factor ( ( "-" | "+" ) factor )* ;
@@ -201,7 +203,7 @@ impl<'a> Parser<'a> {
     }
 
     fn assignment(&mut self) -> ParseResult<Expression> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
         if self.peek_type() == TokenType::Equal {
             if let Variable(name) = expr {
                 self.advance();
@@ -216,6 +218,36 @@ impl<'a> Parser<'a> {
         } else {
             Ok(expr)
         }
+    }
+
+    fn or(&mut self) -> ParseResult<Expression> {
+        let mut expr = self.and()?;
+        while let TokenType::Or = self.peek_type() {
+            self.advance();
+            let op = self.previous().unwrap();
+            let right = self.and()?;
+            expr = Logical {
+                left: Box::new(expr),
+                op,
+                right: Box::new(right),
+            }
+        }
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> ParseResult<Expression> {
+        let mut expr = self.equality()?;
+        while let TokenType::And = self.peek_type() {
+            self.advance();
+            let op = self.previous().unwrap();
+            let right = self.equality()?;
+            expr = Logical {
+                left: Box::new(expr),
+                op,
+                right: Box::new(right),
+            }
+        }
+        Ok(expr)
     }
 
     fn equality(&mut self) -> ParseResult<Expression> {
