@@ -108,7 +108,10 @@ impl Interpreter {
                     self.execute(else_stmt, env)?;
                 }
             }
-            Stmt::While { condition, stmt } => {
+            Stmt::While {
+                condition,
+                body: stmt,
+            } => {
                 while condition.evaluate(env)?.truthy() {
                     self.execute(stmt, env)?;
                 }

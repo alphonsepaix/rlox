@@ -7,12 +7,16 @@
 // statement      → exprStmt
 //                | ifStmt
 //                | whileStmt
+//                | forStmt
 //                | printStmt
 //                | block ;
 // exprStmt       → expression ";" ;
 // ifStmt         → "if" "(" expression ")" statement
 //                ( "else" statement )? ;
 // whileStmt      → "while" "(" expression ")" statement ;
+// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+//                  expression? ";"
+//                  expression? ")" statement ;
 // printStmt      → "print" expression ";" ;
 // block          → "{" declaration* "}" ;
 //
@@ -31,8 +35,8 @@
 //                | "(" expression ")"
 //                | IDENTIFIER ;
 
-use crate::grammar::Expression;
 use crate::grammar::Expression::*;
+use crate::grammar::{Expression, Object};
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -84,7 +88,7 @@ pub enum Stmt {
     },
     While {
         condition: Expression,
-        stmt: Box<Stmt>,
+        body: Box<Stmt>,
     },
 }
 
@@ -158,6 +162,10 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.while_statement()
             }
+            TokenType::For => {
+                self.advance();
+                self.for_statement()
+            }
             _ => self.expr_statement(),
         }
     }
@@ -210,7 +218,71 @@ impl<'a> Parser<'a> {
             "expected `)` after `while`".to_string(),
         )?;
         let stmt = Box::new(self.statement()?);
-        Ok(Stmt::While { condition, stmt })
+        Ok(Stmt::While {
+            condition,
+            body: stmt,
+        })
+    }
+
+    fn for_statement(&mut self) -> ParseResult<Stmt> {
+        self.consume(TokenType::LeftParen, "expected `(` after `for`".to_string())?;
+        let initializer = match self.peek_type() {
+            TokenType::Var => {
+                self.advance();
+                Some(self.var_declaration()?)
+            }
+            TokenType::Semicolon => {
+                self.advance();
+                None
+            }
+            _ => {
+                self.advance();
+                Some(self.expr_statement()?)
+            }
+        };
+        let condition = match self.peek_type() {
+            TokenType::Semicolon => {
+                self.advance();
+                Literal(Object::Bool(true))
+            }
+            _ => {
+                let expr = self.expression()?;
+                self.consume(
+                    TokenType::Semicolon,
+                    "expected `;` after loop condition".to_string(),
+                )?;
+                expr
+            }
+        };
+        let increment = match self.peek_type() {
+            TokenType::RightParen => {
+                self.advance();
+                None
+            }
+            _ => {
+                let expr = self.expression()?;
+                self.consume(
+                    TokenType::RightParen,
+                    "expected `;` after loop condition".to_string(),
+                )?;
+                Some(expr)
+            }
+        };
+        let body = self.statement()?;
+
+        let mut statements = vec![];
+        if let Some(init) = initializer {
+            statements.push(init);
+        }
+        let mut while_body = vec![body];
+        if let Some(inc) = increment {
+            while_body.push(Stmt::Expr(inc));
+        }
+        statements.push(Stmt::While {
+            condition,
+            body: Box::new(Stmt::Block(while_body)),
+        });
+        Ok(Stmt::Block(statements))
     }
 
     fn expr_statement(&mut self) -> ParseResult<Stmt> {
