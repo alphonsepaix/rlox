@@ -6,11 +6,13 @@
 //
 // statement      → exprStmt
 //                | ifStmt
+//                | whileStmt
 //                | printStmt
 //                | block ;
 // exprStmt       → expression ";" ;
 // ifStmt         → "if" "(" expression ")" statement
 //                ( "else" statement )? ;
+// whileStmt      → "while" "(" expression ")" statement ;
 // printStmt      → "print" expression ";" ;
 // block          → "{" declaration* "}" ;
 //
@@ -80,6 +82,10 @@ pub enum Stmt {
         then_stmt: Box<Stmt>,
         else_stmt: Option<Box<Stmt>>,
     },
+    While {
+        condition: Expression,
+        stmt: Box<Stmt>,
+    },
 }
 
 pub struct Parser<'a> {
@@ -148,6 +154,10 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.if_statement()
             }
+            TokenType::While => {
+                self.advance();
+                self.while_statement()
+            }
             _ => self.expr_statement(),
         }
     }
@@ -187,6 +197,20 @@ impl<'a> Parser<'a> {
             then_stmt,
             else_stmt,
         })
+    }
+
+    fn while_statement(&mut self) -> ParseResult<Stmt> {
+        self.consume(
+            TokenType::LeftParen,
+            "expected `(` after `while`".to_string(),
+        )?;
+        let condition = self.expression()?;
+        self.consume(
+            TokenType::RightParen,
+            "expected `)` after `while`".to_string(),
+        )?;
+        let stmt = Box::new(self.statement()?);
+        Ok(Stmt::While { condition, stmt })
     }
 
     fn expr_statement(&mut self) -> ParseResult<Stmt> {

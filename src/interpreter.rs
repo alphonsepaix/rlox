@@ -1,10 +1,11 @@
 use crate::grammar::Expression::Assign;
 use crate::grammar::{Object, RuntimeError, RuntimeResult};
 use crate::parser::Stmt;
-use std::collections::{HashMap, VecDeque};
+use std::collections::hash_map::Entry::Occupied;
+use std::collections::HashMap;
 
 #[derive(Debug)]
-pub struct Environment(VecDeque<HashMap<String, Option<Object>>>);
+pub struct Environment(Vec<HashMap<String, Option<Object>>>);
 
 impl Default for Environment {
     fn default() -> Self {
@@ -14,18 +15,29 @@ impl Default for Environment {
 
 impl Environment {
     pub fn new() -> Self {
-        Self(VecDeque::from_iter([HashMap::new()]))
+        Self(vec![HashMap::new()])
     }
 
     pub fn define(&mut self, name: &str, value: Option<Object>) {
         self.0
-            .front_mut()
+            .last_mut()
             .expect("no environment were found")
             .insert(name.to_string(), value);
     }
 
+    pub fn update(&mut self, name: &str, value: Object) -> RuntimeResult<()> {
+        for env in self.0.iter_mut().rev() {
+            if let Occupied(ref mut entry) = env.entry(name.to_string()) {
+                *entry.get_mut() = Some(value.clone());
+                return Ok(());
+            }
+        }
+
+        Err(RuntimeError::new(format!("name `{name}` is not defined")))
+    }
+
     pub fn get(&self, name: &str) -> RuntimeResult<&Option<Object>> {
-        for env in &self.0 {
+        for env in self.0.iter().rev() {
             if let Some(obj) = env.get(name) {
                 return Ok(obj);
             }
@@ -35,11 +47,11 @@ impl Environment {
     }
 
     pub fn enter_block(&mut self) {
-        self.0.push_front(HashMap::new());
+        self.0.push(HashMap::new());
     }
 
     pub fn exit_block(&mut self) {
-        self.0.pop_front();
+        self.0.pop();
     }
 }
 
@@ -94,6 +106,11 @@ impl Interpreter {
                     self.execute(then_stmt, env)?;
                 } else if let Some(else_stmt) = else_stmt {
                     self.execute(else_stmt, env)?;
+                }
+            }
+            Stmt::While { condition, stmt } => {
+                while condition.evaluate(env)?.truthy() {
+                    self.execute(stmt, env)?;
                 }
             }
         }

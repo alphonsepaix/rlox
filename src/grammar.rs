@@ -47,7 +47,7 @@ pub enum Object {
 use Object::*;
 
 impl Object {
-    fn truthy(&self) -> bool {
+    pub fn truthy(&self) -> bool {
         !matches!(self, Bool(false) | Nil)
     }
 
@@ -172,9 +172,8 @@ impl Expression {
                 )))
                 .cloned(),
             Assign(name, expr) => {
-                env.get(name)?;
                 let eval = expr.evaluate(env)?;
-                env.define(name, Some(eval.clone()));
+                env.update(name, eval.clone())?;
                 Ok(eval)
             }
             Logical { left, op, right } => {
@@ -183,10 +182,8 @@ impl Expression {
                     if left.truthy() {
                         return Ok(Bool(true));
                     }
-                } else {
-                    if !left.truthy() {
-                        return Ok(Bool(false));
-                    }
+                } else if !left.truthy() {
+                    return Ok(Bool(false));
                 }
                 Ok(Bool(right.evaluate(env)?.truthy()))
             }
