@@ -230,7 +230,9 @@ impl<'a> Scanner<'a> {
                 }
                 TokenType::Slash
             }
-            ' ' | '\r' | '\t' | '\n' => return Ok(()),
+            ' ' | '\r' | '\t' | '\n' => {
+                return Ok(());
+            }
             '"' => self.string()?,
             x if x.is_ascii_digit() => self.number()?,
             c if c.is_ascii_alphabetic() => self.identifier()?,

@@ -5,9 +5,12 @@
 // varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 //
 // statement      → exprStmt
+//                | ifStmt
 //                | printStmt
 //                | block ;
 // exprStmt       → expression ";" ;
+// ifStmt         → "if" "(" expression ")" statement
+//                ( "else" statement )? ;
 // printStmt      → "print" expression ";" ;
 // block          → "{" declaration* "}" ;
 //
@@ -26,7 +29,6 @@
 
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
-use crate::interpreter::Stmt;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -61,6 +63,22 @@ impl Display for ParseError {
 impl Error for ParseError {}
 
 type ParseResult<T> = Result<T, ParseError>;
+
+#[derive(Clone, Debug)]
+pub enum Stmt {
+    Var {
+        name: String,
+        initializer: Option<Expression>,
+    },
+    Print(Expression),
+    Expr(Expression),
+    Block(Vec<Stmt>),
+    If {
+        condition: Expression,
+        then_stmt: Box<Stmt>,
+        else_stmt: Option<Box<Stmt>>,
+    },
+}
 
 pub struct Parser<'a> {
     tokens: &'a [Token],
@@ -124,6 +142,10 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.block().map(Stmt::Block)
             }
+            TokenType::If => {
+                self.advance();
+                self.if_statement()
+            }
             _ => self.expr_statement(),
         }
     }
@@ -146,6 +168,23 @@ impl<'a> Parser<'a> {
         let expr = self.expression()?;
         self.consume(TokenType::Semicolon, "expected `;` after value".to_string())?;
         Ok(Stmt::Print(expr))
+    }
+
+    fn if_statement(&mut self) -> ParseResult<Stmt> {
+        self.consume(TokenType::LeftParen, "expected `(` after `if`".to_string())?;
+        let condition = self.expression()?;
+        self.consume(TokenType::RightParen, "expected `)` after `if`".to_string())?;
+        let then_stmt = Box::new(self.statement()?);
+        let mut else_stmt = None;
+        if let TokenType::Else = self.peek_type() {
+            self.advance();
+            else_stmt = Some(Box::new(self.statement()?));
+        }
+        Ok(Stmt::If {
+            condition,
+            then_stmt,
+            else_stmt,
+        })
     }
 
     fn expr_statement(&mut self) -> ParseResult<Stmt> {

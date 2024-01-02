@@ -1,5 +1,6 @@
 use crate::grammar::Expression::Assign;
-use crate::grammar::{Expression, Object, RuntimeError, RuntimeResult};
+use crate::grammar::{Object, RuntimeError, RuntimeResult};
+use crate::parser::Stmt;
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug)]
@@ -42,17 +43,6 @@ impl Environment {
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum Stmt {
-    Var {
-        name: String,
-        initializer: Option<Expression>,
-    },
-    Print(Expression),
-    Expr(Expression),
-    Block(Vec<Stmt>),
-}
-
 pub enum Context {
     Repl,
     File,
@@ -93,6 +83,17 @@ impl Interpreter {
                 let eval = expression.evaluate(env)?;
                 if matches!(self.context, Context::Repl) && !matches!(expression, Assign(..)) {
                     println!("{eval}");
+                }
+            }
+            Stmt::If {
+                condition,
+                then_stmt,
+                else_stmt,
+            } => {
+                if let Object::Bool(true) = condition.evaluate(env)? {
+                    self.execute(then_stmt, env)?;
+                } else if let Some(else_stmt) = else_stmt {
+                    self.execute(else_stmt, env)?;
                 }
             }
         }
