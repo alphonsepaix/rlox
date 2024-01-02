@@ -1,8 +1,9 @@
-use crate::grammar::Expression::Assign;
+use crate::grammar::Expression::{Assign, Literal};
 use crate::grammar::{Object, RuntimeError, RuntimeResult};
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct Environment(Vec<HashMap<String, Option<Object>>>);
@@ -60,6 +61,20 @@ pub enum Context {
     File,
 }
 
+pub enum Signal {
+    Continue,
+    Break,
+}
+
+impl Display for Signal {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Signal::Continue => write!(f, "continue"),
+            Signal::Break => write!(f, "break"),
+        }
+    }
+}
+
 pub struct Interpreter {
     statements: Vec<Stmt>,
     context: Context,
@@ -74,7 +89,11 @@ impl Interpreter {
     }
 
     #[allow(clippy::only_used_in_recursion)]
-    pub fn execute(&mut self, statement: &Stmt, env: &mut Environment) -> RuntimeResult<()> {
+    pub fn execute(
+        &mut self,
+        statement: &Stmt,
+        env: &mut Environment,
+    ) -> RuntimeResult<Option<Signal>> {
         match &statement {
             Stmt::Var { name, initializer } => {
                 let eval = initializer
@@ -83,10 +102,14 @@ impl Interpreter {
                     .transpose()?;
                 env.define(name, eval);
             }
-            Stmt::Block(v) => {
+            Stmt::Block(block) => {
                 env.enter_block();
-                for s in v {
-                    self.execute(s, env)?;
+                for s in block {
+                    let control = self.execute(s, env)?;
+                    if control.is_some() {
+                        env.exit_block();
+                        return Ok(control);
+                    }
                 }
                 env.exit_block();
             }
@@ -103,9 +126,9 @@ impl Interpreter {
                 else_stmt,
             } => {
                 if let Object::Bool(true) = condition.evaluate(env)? {
-                    self.execute(then_stmt, env)?;
+                    return self.execute(then_stmt, env);
                 } else if let Some(else_stmt) = else_stmt {
-                    self.execute(else_stmt, env)?;
+                    return self.execute(else_stmt, env);
                 }
             }
             Stmt::While {
@@ -113,18 +136,57 @@ impl Interpreter {
                 body: stmt,
             } => {
                 while condition.evaluate(env)?.truthy() {
-                    self.execute(stmt, env)?;
+                    if let Some(instr) = self.execute(stmt, env)? {
+                        match instr {
+                            Signal::Break => break,
+                            Signal::Continue => continue,
+                        }
+                    }
                 }
             }
+            Stmt::For {
+                initializer,
+                condition,
+                increment,
+                body,
+            } => {
+                if let Some(instr) = initializer {
+                    self.execute(instr, env)?;
+                }
+                let condition = condition.as_ref().unwrap_or(&Literal(Object::Bool(true)));
+                while condition.evaluate(env)?.truthy() {
+                    if let Some(instr) = self.execute(body, env)? {
+                        match instr {
+                            Signal::Break => break,
+                            Signal::Continue => {
+                                if let Some(instr) = increment {
+                                    instr.evaluate(env)?;
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                    if let Some(instr) = increment {
+                        instr.evaluate(env)?;
+                    }
+                }
+            }
+            Stmt::Break => return Ok(Some(Signal::Break)),
+            Stmt::Continue => return Ok(Some(Signal::Continue)),
         }
-        Ok(())
+        Ok(None)
     }
 
     pub fn interpret(&mut self, env: &mut Environment) {
         for statement in self.statements.clone() {
-            let eval = self.execute(&statement, env);
-            if let Err(e) = eval {
-                eprintln!("{e}");
+            let exec = self.execute(&statement, env);
+            match exec {
+                Err(e) => eprintln!("{e}"),
+                Ok(Some(signal)) => {
+                    let err = RuntimeError::new(format!("`{signal}` outside loop"));
+                    eprintln!("{err}");
+                }
+                _ => (),
             }
         }
     }

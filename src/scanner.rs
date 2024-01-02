@@ -25,6 +25,8 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "true" => TokenType::True,
     "var" => TokenType::Var,
     "while" => TokenType::While,
+    "break" => TokenType::Break,
+    "continue" => TokenType::Continue,
 };
 
 #[derive(Debug, PartialEq)]
@@ -98,7 +100,9 @@ pub enum TokenType {
     Number(f64),
 
     And,
+    Break,
     Class,
+    Continue,
     Else,
     Fun,
     For,

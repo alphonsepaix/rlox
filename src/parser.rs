@@ -9,6 +9,8 @@
 //                | whileStmt
 //                | forStmt
 //                | printStmt
+//                | breakStmt
+//                | continueStmt
 //                | block ;
 // exprStmt       → expression ";" ;
 // ifStmt         → "if" "(" expression ")" statement
@@ -18,6 +20,8 @@
 //                  expression? ";"
 //                  expression? ")" statement ;
 // printStmt      → "print" expression ";" ;
+// breakStmt      → "break" ";" ;
+// continueStmt   → "continue" ";" ;
 // block          → "{" declaration* "}" ;
 //
 // expression     → assignment ;
@@ -35,8 +39,8 @@
 //                | "(" expression ")"
 //                | IDENTIFIER ;
 
+use crate::grammar::Expression;
 use crate::grammar::Expression::*;
-use crate::grammar::{Expression, Object};
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -90,6 +94,14 @@ pub enum Stmt {
         condition: Expression,
         body: Box<Stmt>,
     },
+    For {
+        initializer: Option<Box<Stmt>>,
+        condition: Option<Expression>,
+        increment: Option<Expression>,
+        body: Box<Stmt>,
+    },
+    Break,
+    Continue,
 }
 
 pub struct Parser<'a> {
@@ -166,6 +178,22 @@ impl<'a> Parser<'a> {
                 self.advance();
                 self.for_statement()
             }
+            TokenType::Break => {
+                self.advance();
+                self.consume(
+                    TokenType::Semicolon,
+                    "expected `;` after `break`".to_string(),
+                )?;
+                Ok(Stmt::Break)
+            }
+            TokenType::Continue => {
+                self.advance();
+                self.consume(
+                    TokenType::Semicolon,
+                    "expected `;` after `continue`".to_string(),
+                )?;
+                Ok(Stmt::Continue)
+            }
             _ => self.expr_statement(),
         }
     }
@@ -229,7 +257,7 @@ impl<'a> Parser<'a> {
         let initializer = match self.peek_type() {
             TokenType::Var => {
                 self.advance();
-                Some(self.var_declaration()?)
+                Some(Box::new(self.var_declaration()?))
             }
             TokenType::Semicolon => {
                 self.advance();
@@ -237,52 +265,49 @@ impl<'a> Parser<'a> {
             }
             _ => {
                 self.advance();
-                Some(self.expr_statement()?)
+                Some(Box::new(self.expr_statement()?))
             }
         };
-        let condition = match self.peek_type() {
-            TokenType::Semicolon => {
-                self.advance();
-                Literal(Object::Bool(true))
-            }
-            _ => {
-                let expr = self.expression()?;
-                self.consume(
-                    TokenType::Semicolon,
-                    "expected `;` after loop condition".to_string(),
-                )?;
-                expr
-            }
-        };
-        let increment = match self.peek_type() {
-            TokenType::RightParen => {
-                self.advance();
-                None
-            }
-            _ => {
-                let expr = self.expression()?;
-                self.consume(
-                    TokenType::RightParen,
-                    "expected `;` after loop condition".to_string(),
-                )?;
-                Some(expr)
-            }
-        };
+        let condition =
+            self.null_expression(TokenType::Semicolon, "expected `;` after loop condition")?;
+        let increment =
+            self.null_expression(TokenType::RightParen, "expected `)` after for clauses")?;
         let body = self.statement()?;
 
-        let mut statements = vec![];
-        if let Some(init) = initializer {
-            statements.push(init);
-        }
-        let mut while_body = vec![body];
-        if let Some(inc) = increment {
-            while_body.push(Stmt::Expr(inc));
-        }
-        statements.push(Stmt::While {
+        // let mut statements = vec![];
+        // if let Some(init) = initializer {
+        //     statements.push(init);
+        // }
+        // let mut while_body = vec![body];
+        // if let Some(inc) = increment {
+        //     while_body.push(Stmt::Expr(inc));
+        // }
+        // statements.push(Stmt::While {
+        //     condition,
+        //     body: Box::new(Stmt::Block(while_body)),
+        // });
+        // Ok(Stmt::Block(statements))
+        Ok(Stmt::For {
+            initializer,
             condition,
-            body: Box::new(Stmt::Block(while_body)),
-        });
-        Ok(Stmt::Block(statements))
+            increment,
+            body: Box::new(body),
+        })
+    }
+
+    fn null_expression(
+        &mut self,
+        delimiter: TokenType,
+        message: &str,
+    ) -> ParseResult<Option<Expression>> {
+        if self.peek_type() == delimiter {
+            self.advance();
+            Ok(None)
+        } else {
+            let expr = self.expression()?;
+            self.consume(delimiter, message.to_string())?;
+            Ok(Some(expr))
+        }
     }
 
     fn expr_statement(&mut self) -> ParseResult<Stmt> {
