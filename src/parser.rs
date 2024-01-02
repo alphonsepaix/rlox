@@ -1,10 +1,10 @@
-// program        → declaration* EOF ;
+// program        -> declaration* EOF ;
 
-// declaration    → varDecl
+// declaration    -> varDecl
 //                | statement ;
-// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
+// varDecl        -> "var" IDENTIFIER ( "=" expression )? ";" ;
 //
-// statement      → exprStmt
+// statement      -> exprStmt
 //                | ifStmt
 //                | whileStmt
 //                | forStmt
@@ -12,30 +12,30 @@
 //                | breakStmt
 //                | continueStmt
 //                | block ;
-// exprStmt       → expression ";" ;
-// ifStmt         → "if" "(" expression ")" statement
+// exprStmt       -> expression ";" ;
+// ifStmt         -> "if" "(" expression ")" statement
 //                ( "else" statement )? ;
-// whileStmt      → "while" "(" expression ")" statement ;
-// forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
+// whileStmt      -> "while" "(" expression ")" statement ;
+// forStmt        -> "for" "(" ( varDecl | exprStmt | ";" )
 //                  expression? ";"
 //                  expression? ")" statement ;
-// printStmt      → "print" expression ";" ;
-// breakStmt      → "break" ";" ;
-// continueStmt   → "continue" ";" ;
-// block          → "{" declaration* "}" ;
+// printStmt      -> "print" expression ";" ;
+// breakStmt      -> "break" ";" ;
+// continueStmt   -> "continue" ";" ;
+// block          -> "{" declaration* "}" ;
 //
-// expression     → assignment ;
-// assignment     → IDENTIFIER "=" assignment
+// expression     -> assignment ;
+// assignment     -> IDENTIFIER "=" assignment
 //                | logic_or ;
-// logic_or       → logic_and ( "or" logic_and )* ;
-// logic_and      → equality ( "and" equality )* ;
-// equality       → comparison ( ( "!=" | "==" ) comparison )* ;
-// comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-// term           → factor ( ( "-" | "+" ) factor )* ;
-// factor         → unary ( ( "/" | "*" ) unary )* ;
-// unary          → ( "!" | "-" ) unary
+// logic_or       -> logic_and ( "or" logic_and )* ;
+// logic_and      -> equality ( "and" equality )* ;
+// equality       -> comparison ( ( "!=" | "==" ) comparison )* ;
+// comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
+// term           -> factor ( ( "-" | "+" ) factor )* ;
+// factor         -> unary ( ( "/" | "*" ) unary )* ;
+// unary          -> ( "!" | "-" ) unary
 //                | primary ;
-// primary        → NUMBER | STRING | "true" | "false" | "nil"
+// primary        -> NUMBER | STRING | "true" | "false" | "nil"
 //                | "(" expression ")"
 //                | IDENTIFIER ;
 

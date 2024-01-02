@@ -1,13 +1,13 @@
-// expression     → literal
+// expression     -> literal
 //                | unary
 //                | binary
 //                | grouping ;
 //
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
-// grouping       → "(" expression ")" ;
-// unary          → ( "-" | "!" ) expression ;
-// binary         → expression operator expression ;
-// operator       → "==" | "!=" | "<" | "<=" | ">" | ">="
+// literal        -> NUMBER | STRING | "true" | "false" | "nil" ;
+// grouping       -> "(" expression ")" ;
+// unary          -> ( "-" | "!" ) expression ;
+// binary         -> expression operator expression ;
+// operator       -> "==" | "!=" | "<" | "<=" | ">" | ">="
 //                | "+"  | "-"  | "*" | "/" ;
 
 use crate::scanner::{Token, TokenType};
