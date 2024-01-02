@@ -107,11 +107,16 @@ pub enum Stmt {
 pub struct Parser<'a> {
     tokens: &'a [Token],
     current: usize,
+    enclosing_loops: usize,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, current: 0 }
+        Self {
+            tokens,
+            current: 0,
+            enclosing_loops: 0,
+        }
     }
 
     pub fn parse(&mut self) -> ParseResult<Vec<Stmt>> {
@@ -171,14 +176,26 @@ impl<'a> Parser<'a> {
                 self.if_statement()
             }
             TokenType::While => {
+                self.enclosing_loops += 1;
                 self.advance();
-                self.while_statement()
+                let stmt = self.while_statement();
+                self.enclosing_loops -= 1;
+                stmt
             }
             TokenType::For => {
+                self.enclosing_loops += 1;
                 self.advance();
-                self.for_statement()
+                let stmt = self.for_statement();
+                self.enclosing_loops -= 1;
+                stmt
             }
             TokenType::Break => {
+                if self.enclosing_loops == 0 {
+                    return Err(ParseError::new(
+                        self.peek(),
+                        "`break` outside loop".to_string(),
+                    ));
+                }
                 self.advance();
                 self.consume(
                     TokenType::Semicolon,
@@ -187,6 +204,12 @@ impl<'a> Parser<'a> {
                 Ok(Stmt::Break)
             }
             TokenType::Continue => {
+                if self.enclosing_loops == 0 {
+                    return Err(ParseError::new(
+                        self.peek(),
+                        "`continue` not properly in loop".to_string(),
+                    ));
+                }
                 self.advance();
                 self.consume(
                     TokenType::Semicolon,
