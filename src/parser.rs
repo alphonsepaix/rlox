@@ -41,6 +41,7 @@
 
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
+use crate::grammar::Object::Bool;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -93,12 +94,7 @@ pub enum Stmt {
     While {
         condition: Expression,
         body: Box<Stmt>,
-    },
-    For {
-        initializer: Option<Box<Stmt>>,
-        condition: Option<Expression>,
         increment: Option<Expression>,
-        body: Box<Stmt>,
     },
     Break,
     Continue,
@@ -272,6 +268,7 @@ impl<'a> Parser<'a> {
         Ok(Stmt::While {
             condition,
             body: stmt,
+            increment: None,
         })
     }
 
@@ -291,31 +288,27 @@ impl<'a> Parser<'a> {
                 Some(Box::new(self.expr_statement()?))
             }
         };
-        let condition =
-            self.null_expression(TokenType::Semicolon, "expected `;` after loop condition")?;
+        let condition = self
+            .null_expression(TokenType::Semicolon, "expected `;` after loop condition")?
+            .unwrap_or(Literal(Bool(true)));
         let increment =
             self.null_expression(TokenType::RightParen, "expected `)` after for clauses")?;
         let body = self.statement()?;
 
-        // let mut statements = vec![];
-        // if let Some(init) = initializer {
-        //     statements.push(init);
-        // }
-        // let mut while_body = vec![body];
-        // if let Some(inc) = increment {
-        //     while_body.push(Stmt::Expr(inc));
-        // }
-        // statements.push(Stmt::While {
-        //     condition,
-        //     body: Box::new(Stmt::Block(while_body)),
-        // });
-        // Ok(Stmt::Block(statements))
-        Ok(Stmt::For {
-            initializer,
+        let mut statements = vec![];
+        if let Some(init) = initializer {
+            statements.push(*init);
+        }
+        let mut while_body = vec![body];
+        if let Some(inc) = increment.clone() {
+            while_body.push(Stmt::Expr(inc));
+        }
+        statements.push(Stmt::While {
             condition,
+            body: Box::new(Stmt::Block(while_body)),
             increment,
-            body: Box::new(body),
-        })
+        });
+        Ok(Stmt::Block(statements))
     }
 
     fn null_expression(

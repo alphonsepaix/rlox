@@ -1,4 +1,4 @@
-use crate::grammar::Expression::{Assign, Literal};
+use crate::grammar::Expression::Assign;
 use crate::grammar::{Object, RuntimeError, RuntimeResult};
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
@@ -133,41 +133,20 @@ impl Interpreter {
             }
             Stmt::While {
                 condition,
-                body: stmt,
-            } => {
-                while condition.evaluate(env)?.truthy() {
-                    if let Some(instr) = self.execute(stmt, env)? {
-                        match instr {
-                            Signal::Break => break,
-                            Signal::Continue => continue,
-                        }
-                    }
-                }
-            }
-            Stmt::For {
-                initializer,
-                condition,
-                increment,
                 body,
+                increment,
             } => {
-                if let Some(instr) = initializer {
-                    self.execute(instr, env)?;
-                }
-                let condition = condition.as_ref().unwrap_or(&Literal(Object::Bool(true)));
                 while condition.evaluate(env)?.truthy() {
-                    if let Some(instr) = self.execute(body, env)? {
-                        match instr {
+                    if let Some(signal) = self.execute(body, env)? {
+                        match signal {
                             Signal::Break => break,
                             Signal::Continue => {
-                                if let Some(instr) = increment {
-                                    instr.evaluate(env)?;
+                                if let Some(increment) = increment {
+                                    increment.evaluate(env)?;
                                 }
                                 continue;
                             }
                         }
-                    }
-                    if let Some(instr) = increment {
-                        instr.evaluate(env)?;
                     }
                 }
             }
@@ -179,13 +158,9 @@ impl Interpreter {
 
     pub fn interpret(&mut self, env: &mut Environment) {
         for statement in self.statements.clone() {
-            let exec = self.execute(&statement, env);
-            match exec {
+            match self.execute(&statement, env) {
                 Err(e) => eprintln!("{e}"),
-                Ok(Some(signal)) => {
-                    let err = RuntimeError::new(format!("`{signal}` outside loop"));
-                    eprintln!("{err}");
-                }
+                Ok(Some(signal)) => panic!("signal `{signal}` unhandled", signal = signal),
                 _ => (),
             }
         }
