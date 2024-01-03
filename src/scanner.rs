@@ -1,4 +1,4 @@
-use crate::errors::{LoxError, ScanError, ScanErrorType, ScanResult};
+use crate::errors::{LoxError, LoxResult, ScanError, ScanErrorType};
 use crate::grammar::Expression;
 use crate::grammar::Expression::Literal;
 use crate::grammar::Object::{Bool, Nil, Number, Str};
@@ -124,7 +124,7 @@ pub struct Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
-    pub fn scan_tokens(&mut self) -> ScanResult<()> {
+    pub fn scan_tokens(&mut self) -> LoxResult<()> {
         while self.peek().is_some() {
             self.start = self.current;
             self.scan_token()?;
@@ -133,7 +133,7 @@ impl<'a> Scanner<'a> {
         Ok(())
     }
 
-    fn scan_token(&mut self) -> ScanResult<()> {
+    fn scan_token(&mut self) -> LoxResult<()> {
         let c = self.advance().expect("scanning in empty stream");
         let r#type = match c {
             '(' => TokenType::LeftParen,
@@ -193,7 +193,7 @@ impl<'a> Scanner<'a> {
             x if x.is_ascii_digit() => self.number()?,
             c if c.is_ascii_alphabetic() => self.identifier()?,
             _ => {
-                return Err(self.error(
+                return Err(self.scan_error(
                     ScanErrorType::UnexpectedCharacter,
                     "unexpected symbol while parsing",
                 ))
@@ -254,7 +254,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn string(&mut self) -> ScanResult<TokenType> {
+    fn string(&mut self) -> LoxResult<TokenType> {
         let mut s = String::new();
         while let Some(c) = self.peek() {
             if c == '"' {
@@ -264,13 +264,13 @@ impl<'a> Scanner<'a> {
             s.push(c);
         }
         if self.peek().is_none() {
-            return Err(self.error(ScanErrorType::UnterminatedString, "missing \" delimiter"));
+            return Err(self.scan_error(ScanErrorType::UnterminatedString, "missing \" delimiter"));
         }
         self.advance();
         Ok(TokenType::String(s))
     }
 
-    fn number(&mut self) -> ScanResult<TokenType> {
+    fn number(&mut self) -> LoxResult<TokenType> {
         while let Some(c) = self.peek() {
             if !c.is_ascii_digit() {
                 break;
@@ -282,7 +282,7 @@ impl<'a> Scanner<'a> {
             // if the stream is empty we put a random alpha character to make sure that the next test fails
             let next = self.advance().unwrap_or('a');
             if !next.is_ascii_digit() {
-                return Err(self.error(ScanErrorType::InvalidNumber, "invalid decimal part"));
+                return Err(self.scan_error(ScanErrorType::InvalidNumber, "invalid decimal part"));
             } else {
                 while let Some(c) = self.peek() {
                     if !c.is_ascii_digit() {
@@ -298,7 +298,7 @@ impl<'a> Scanner<'a> {
         Ok(TokenType::Number(num))
     }
 
-    fn identifier(&mut self) -> ScanResult<TokenType> {
+    fn identifier(&mut self) -> LoxResult<TokenType> {
         while let Some(c) = self.peek() {
             if !c.is_ascii_alphabetic() {
                 break;
@@ -326,12 +326,13 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    fn error(&self, r#type: ScanErrorType, message: &str) -> ScanError {
+    fn scan_error(&self, r#type: ScanErrorType, message: &str) -> LoxError {
         ScanError {
             line: self.line,
             col: self.col,
             message: message.to_string(),
             r#type,
         }
+        .into()
     }
 }
