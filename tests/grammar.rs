@@ -42,58 +42,5 @@ fn check_expr_repr() {
         op,
         right: Box::new(expr2),
     };
-    assert_eq!(expr.repr(), "(== (* (- 3.14) (group 3.151)) (- 9.89))");
-}
-
-#[test]
-fn check_expr_rpn() {
-    let expr = Binary {
-        left: Box::new(Unary {
-            op: Token {
-                r#type: TokenType::Minus,
-                lexeme: "-".to_string(),
-                line: 0,
-                col: 0,
-            },
-            right: Box::new(Literal(Number(3.14))),
-        }),
-        op: Token {
-            r#type: TokenType::Star,
-            lexeme: "*".to_string(),
-            line: 0,
-            col: 0,
-        },
-        right: Box::new(Grouping(Box::new(Literal(Number(3.151))))),
-    };
-    assert_eq!(expr.rpn(), "-3.14 3.151 *");
-
-    let expr = Binary {
-        left: Box::new(Binary {
-            left: Box::new(Literal(Number(1.0))),
-            op: Token {
-                r#type: TokenType::Plus,
-                lexeme: "+".to_string(),
-                line: 0,
-                col: 0,
-            },
-            right: Box::new(Literal(Number(2.0))),
-        }),
-        op: Token {
-            r#type: TokenType::Star,
-            lexeme: "*".to_string(),
-            line: 0,
-            col: 0,
-        },
-        right: Box::new(Binary {
-            left: Box::new(Literal(Number(4.0))),
-            op: Token {
-                r#type: TokenType::Minus,
-                lexeme: "-".to_string(),
-                line: 0,
-                col: 0,
-            },
-            right: Box::new(Literal(Number(3.0))),
-        }),
-    };
-    assert_eq!(expr.rpn(), "1 2 + 4 3 - *");
+    assert_eq!(expr.to_string(), "(== (* (- 3.14) (group 3.151)) (- 9.89))");
 }

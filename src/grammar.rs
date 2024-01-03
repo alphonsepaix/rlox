@@ -64,41 +64,6 @@ impl Object {
         }
         self == other
     }
-
-    fn call(
-        &self,
-        name: &str,
-        arguments: &Vec<Expression>,
-        env: &mut Environment,
-    ) -> RuntimeResult<Object> {
-        match self {
-            Func(declaration) => {
-                if let Stmt::Function {
-                    body, parameters, ..
-                } = *declaration.clone()
-                {
-                    env.enter_block();
-                    let objects = arguments
-                        .iter()
-                        .map(|arg| arg.evaluate(env))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    parameters
-                        .iter()
-                        .zip(objects)
-                        .for_each(|(param, value)| env.define(param, Some(value)));
-                    let interpreter = Interpreter::new(vec![]);
-                    for statement in &body {
-                        interpreter.execute(statement, env)?;
-                    }
-                    env.exit_block();
-                    Ok(Nil)
-                } else {
-                    panic!("internal error");
-                }
-            }
-            _ => Err(RuntimeError::new(format!("`{name}` is not callable"))),
-        }
-    }
 }
 
 impl Display for Object {
@@ -254,5 +219,74 @@ impl Display for Expression {
             Call { .. } => todo!(),
         };
         write!(f, "{s}")
+    }
+}
+
+trait Callable {
+    fn call(
+        &self,
+        name: &str,
+        arguments: &Vec<Expression>,
+        env: &mut Environment,
+    ) -> RuntimeResult<Object>;
+
+    fn arity(&self) -> usize;
+}
+
+impl Callable for Object {
+    fn call(
+        &self,
+        name: &str,
+        arguments: &Vec<Expression>,
+        env: &mut Environment,
+    ) -> RuntimeResult<Object> {
+        match self {
+            Func(declaration) => {
+                if let Stmt::Function {
+                    body, parameters, ..
+                } = *declaration.clone()
+                {
+                    let arity = self.arity();
+                    let num_args = arguments.len();
+                    if num_args != arity {
+                        return Err(RuntimeError::new(format!(
+                            "`{name}`: expected {arity} argument{} but got {num_args}",
+                            if arity > 1 { 's' } else { '\0' },
+                        )));
+                    }
+                    env.enter_block();
+                    let objects = arguments
+                        .iter()
+                        .map(|arg| arg.evaluate(env))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    parameters
+                        .iter()
+                        .zip(objects)
+                        .for_each(|(param, value)| env.define(param, Some(value)));
+                    let interpreter = Interpreter::new(vec![]);
+                    for statement in &body {
+                        interpreter.execute(statement, env)?;
+                    }
+                    env.exit_block();
+                    Ok(Nil)
+                } else {
+                    panic!("internal error");
+                }
+            }
+            _ => Err(RuntimeError::new(format!("`{name}` is not callable"))),
+        }
+    }
+
+    fn arity(&self) -> usize {
+        match self {
+            Func(declaration) => {
+                if let Stmt::Function { parameters, .. } = declaration.as_ref() {
+                    parameters.len()
+                } else {
+                    panic!("expected function declaration");
+                }
+            }
+            _ => panic!("expected a function"),
+        }
     }
 }
