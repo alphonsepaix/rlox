@@ -1,4 +1,3 @@
-use crate::grammar::Expression::Assign;
 use crate::grammar::{Object, RuntimeError, RuntimeResult};
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
@@ -56,11 +55,6 @@ impl Environment {
     }
 }
 
-pub enum Context {
-    Repl,
-    File,
-}
-
 pub enum Signal {
     Continue,
     Break,
@@ -77,20 +71,16 @@ impl Display for Signal {
 
 pub struct Interpreter {
     statements: Vec<Stmt>,
-    context: Context,
 }
 
 impl Interpreter {
-    pub fn new(statements: Vec<Stmt>, context: Context) -> Self {
-        Self {
-            statements,
-            context,
-        }
+    pub fn new(statements: Vec<Stmt>) -> Self {
+        Self { statements }
     }
 
     #[allow(clippy::only_used_in_recursion)]
     pub fn execute(
-        &mut self,
+        &self,
         statement: &Stmt,
         env: &mut Environment,
     ) -> RuntimeResult<Option<Signal>> {
@@ -102,8 +92,8 @@ impl Interpreter {
                     .transpose()?;
                 env.define(name, eval);
             }
-            Stmt::Function { .. } => {
-                todo!();
+            Stmt::Function { name, .. } => {
+                env.define(name, Some(Object::Func(Box::new(statement.clone()))));
             }
             Stmt::Block(block) => {
                 env.enter_block();
@@ -118,10 +108,7 @@ impl Interpreter {
             }
             Stmt::Print(expression) => println!("{}", expression.evaluate(env)?),
             Stmt::Expr(expression) => {
-                let eval = expression.evaluate(env)?;
-                if matches!(self.context, Context::Repl) && !matches!(expression, Assign(..)) {
-                    println!("{eval}");
-                }
+                expression.evaluate(env)?;
             }
             Stmt::If {
                 condition,
@@ -159,7 +146,7 @@ impl Interpreter {
         Ok(None)
     }
 
-    pub fn interpret(&mut self, env: &mut Environment) {
+    pub fn interpret(self, env: &mut Environment) {
         for statement in self.statements.clone() {
             match self.execute(&statement, env) {
                 Err(e) => eprintln!("{e}"),

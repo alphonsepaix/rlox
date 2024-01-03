@@ -518,12 +518,12 @@ impl<'a> Parser<'a> {
         let callee = self.primary()?;
 
         // a function can return another function
-        let res = loop {
+        let res = {
             if self.peek_type() == TokenType::LeftParen {
                 self.advance();
-                break self.finish_call(callee)?;
+                self.finish_call(callee)?
             } else {
-                break callee;
+                callee
             }
         };
 

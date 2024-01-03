@@ -10,7 +10,7 @@
 // operator       -> "==" | "!=" | "<" | "<=" | ">" | ">="
 //                 | "+"  | "-"  | "*" | "/" ;
 
-use crate::interpreter::Environment;
+use crate::interpreter::{Environment, Interpreter};
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -43,9 +43,11 @@ pub enum Object {
     Str(String),
     Number(f64),
     Bool(bool),
+    Func(Box<Stmt>),
     Nil,
 }
 
+use crate::parser::Stmt;
 use Object::*;
 
 impl Object {
@@ -62,15 +64,46 @@ impl Object {
         }
         self == other
     }
+
+    fn call(&self, arguments: &Vec<Expression>, env: &mut Environment) -> RuntimeResult<Object> {
+        match self {
+            Func(declaration) => {
+                if let Stmt::Function {
+                    body, parameters, ..
+                } = *declaration.clone()
+                {
+                    env.enter_block();
+                    let objects = arguments
+                        .iter()
+                        .map(|arg| arg.evaluate(env))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    parameters
+                        .iter()
+                        .zip(objects)
+                        .for_each(|(param, value)| env.define(param, Some(value)));
+                    let interpreter = Interpreter::new(vec![]);
+                    for statement in &body {
+                        interpreter.execute(statement, env)?;
+                    }
+                    env.exit_block();
+                    Ok(Nil)
+                } else {
+                    panic!("internal error");
+                }
+            }
+            _ => Err(RuntimeError::new(format!("{self} is not callable"))),
+        }
+    }
 }
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Str(s) => write!(f, "\"{s}\""),
+            Str(s) => write!(f, "{s}"),
             Number(x) => write!(f, "{x}"),
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
+            Func { .. } => write!(f, "<fn>"),
         }
     }
 }
@@ -191,7 +224,11 @@ impl Expression {
                 }
                 Ok(Bool(right.evaluate(env)?.truthy()))
             }
-            Call { .. } => todo!(),
+            Call { callee, arguments } => {
+                // callee is a Variable, get the object living in the env
+                let callee = callee.evaluate(env)?;
+                callee.call(arguments, env)
+            }
         }
     }
 
