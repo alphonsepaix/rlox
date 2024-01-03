@@ -187,7 +187,7 @@ impl Parser {
                 if self.enclosing_loops == 0 {
                     return Err(ParseError::build(
                         self.peek(),
-                        "`continue` not properly in loop".to_string(),
+                        "`continue` outside loop".to_string(),
                     ));
                 }
                 self.advance();

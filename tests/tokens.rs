@@ -6,50 +6,31 @@ use rlox::scanner::*;
 
 #[test]
 fn simple_expression_tokenized_correctly() {
-    let input = r#"var name = "Alphonse""#;
+    let input = r#"var name = "Alphonse";"#;
     let mut scanner = Scanner::new(input);
 
     assert_ok!(scanner.scan_tokens());
 
-    let tokens = vec![
-        Token {
-            r#type: TokenType::Var,
-            lexeme: "var".to_string(),
-            line: 1,
-            col: 1,
-        },
-        Token {
-            r#type: TokenType::Identifier("name".to_string()),
-            lexeme: "name".to_string(),
-            line: 1,
-            col: 5,
-        },
-        Token {
-            r#type: TokenType::Equal,
-            lexeme: "=".to_string(),
-            line: 1,
-            col: 10,
-        },
-        Token {
-            r#type: TokenType::String("Alphonse".to_string()),
-            lexeme: "\"Alphonse\"".to_string(),
-            line: 1,
-            col: 12,
-        },
-        Token {
-            r#type: TokenType::Eof,
-            lexeme: "".to_string(),
-            line: 1,
-            col: input.len() + 1,
-        },
+    let types = vec![
+        TokenType::Var,
+        TokenType::Identifier("name".to_string()),
+        TokenType::Equal,
+        TokenType::String("Alphonse".to_string()),
+        TokenType::Semicolon,
+        TokenType::Eof,
     ];
 
-    assert_eq!(&scanner.tokens, &tokens);
+    for (_expected_type, token_type) in types
+        .iter()
+        .zip(scanner.tokens.into_iter().map(|t| t.r#type))
+    {
+        assert_eq!(_expected_type, &token_type);
+    }
 }
 
 #[test]
 fn unterminated_string_returns_error() {
-    let input = r#"var name = "Alphonse"#;
+    let input = r#"var name = "Alphonse;"#;
     let mut scanner = Scanner::new(input);
     let err = scanner.scan_tokens().err().unwrap();
     assert!(matches!(

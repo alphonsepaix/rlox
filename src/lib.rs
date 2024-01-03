@@ -9,11 +9,10 @@ use crate::interpreter::{Environment, Interpreter};
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use std::io::Write;
-use std::{fs, io, process};
+use std::{io, process};
 
-pub fn run_file(filename: &str) {
+pub fn run_source(source: &str) {
     let mut env = Environment::new();
-    let source = fs::read_to_string(filename).expect("could not read file");
     if let Err(e) = run(source.trim(), &mut env) {
         eprintln!("{e}");
         process::exit(65);
