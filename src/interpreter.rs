@@ -69,13 +69,11 @@ impl Display for Signal {
     }
 }
 
-pub struct Interpreter {
-    statements: Vec<Stmt>,
-}
+pub struct Interpreter;
 
 impl Interpreter {
-    pub fn new(statements: Vec<Stmt>) -> Self {
-        Self { statements }
+    pub fn new() -> Self {
+        Self
     }
 
     #[allow(clippy::only_used_in_recursion)]
@@ -146,8 +144,8 @@ impl Interpreter {
         Ok(None)
     }
 
-    pub fn interpret(self, env: &mut Environment) {
-        for statement in self.statements.clone() {
+    pub fn interpret(self, env: &mut Environment, statements: &[Stmt]) {
+        for statement in statements {
             match self.execute(&statement, env) {
                 Err(e) => eprintln!("{e}"),
                 Ok(Some(signal)) => panic!("signal `{signal}` unhandled", signal = signal),

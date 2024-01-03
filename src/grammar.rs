@@ -263,10 +263,8 @@ impl Callable for Object {
                         .iter()
                         .zip(objects)
                         .for_each(|(param, value)| env.define(param, Some(value)));
-                    let interpreter = Interpreter::new(vec![]);
-                    for statement in &body {
-                        interpreter.execute(statement, env)?;
-                    }
+                    let interpreter = Interpreter::new();
+                    interpreter.interpret(env, &body);
                     env.exit_block();
                     Ok(Nil)
                 } else {

@@ -46,8 +46,8 @@ fn run(source: &str, env: &mut Environment) -> ScanResult<()> {
     let result = parser.parse();
     match result {
         Ok(statements) => {
-            let interpreter = Interpreter::new(statements);
-            interpreter.interpret(env);
+            let interpreter = Interpreter::new();
+            interpreter.interpret(env, &statements);
         }
         Err(e) => {
             eprintln!("{e}");
