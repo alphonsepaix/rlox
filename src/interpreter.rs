@@ -1,4 +1,4 @@
-use crate::errors::{RuntimeError, RuntimeResult};
+use crate::errors::{LoxResult, RuntimeError};
 use crate::grammar::Object;
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
@@ -26,7 +26,7 @@ impl Environment {
             .insert(name.to_string(), value);
     }
 
-    pub fn update(&mut self, name: &str, value: Object) -> RuntimeResult<()> {
+    pub fn update(&mut self, name: &str, value: Object) -> LoxResult<()> {
         for env in self.0.iter_mut().rev() {
             if let Occupied(ref mut entry) = env.entry(name.to_string()) {
                 *entry.get_mut() = Some(value.clone());
@@ -34,17 +34,17 @@ impl Environment {
             }
         }
 
-        Err(RuntimeError::new(format!("name `{name}` is not defined")))
+        Err(RuntimeError::build(format!("name `{name}` is not defined")))
     }
 
-    pub fn get(&self, name: &str) -> RuntimeResult<&Option<Object>> {
+    pub fn get(&self, name: &str) -> LoxResult<&Option<Object>> {
         for env in self.0.iter().rev() {
             if let Some(obj) = env.get(name) {
                 return Ok(obj);
             }
         }
 
-        Err(RuntimeError::new(format!("name `{name}` is not defined")))
+        Err(RuntimeError::build(format!("name `{name}` is not defined")))
     }
 
     pub fn enter_block(&mut self) {
@@ -84,11 +84,7 @@ impl Interpreter {
     }
 
     #[allow(clippy::only_used_in_recursion)]
-    pub fn execute(
-        &self,
-        statement: &Stmt,
-        env: &mut Environment,
-    ) -> RuntimeResult<Option<Signal>> {
+    pub fn execute(&self, statement: &Stmt, env: &mut Environment) -> LoxResult<Option<Signal>> {
         match statement {
             Stmt::Var { name, initializer } => {
                 let eval = initializer

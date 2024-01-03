@@ -10,7 +10,7 @@
 // operator       -> "==" | "!=" | "<" | "<=" | ">" | ">="
 //                 | "+"  | "-"  | "*" | "/" ;
 
-use crate::errors::{RuntimeError, RuntimeResult};
+use crate::errors::{LoxResult, RuntimeError};
 use crate::interpreter::{Environment, Interpreter};
 use crate::scanner::{Token, TokenType};
 use std::fmt::{Display, Formatter};
@@ -83,7 +83,7 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn evaluate(&self, env: &mut Environment) -> RuntimeResult<Object> {
+    pub fn evaluate(&self, env: &mut Environment) -> LoxResult<Object> {
         match self {
             Literal(object) => Ok(object.clone()),
             Unary { op, right } => {
@@ -94,12 +94,12 @@ impl Expression {
                         if let Number(x) = right {
                             Ok(Number(-x))
                         } else {
-                            Err(RuntimeError::new(
+                            Err(RuntimeError::build(
                                 "unary operator `-` only works with numbers".to_string(),
                             ))
                         }
                     }
-                    token => Err(RuntimeError::new(format!(
+                    token => Err(RuntimeError::build(format!(
                         "invalid token for unary expression: `{:?}`",
                         token
                     ))),
@@ -116,7 +116,7 @@ impl Expression {
                         TokenType::Minus => Ok(Number(x - y)),
                         TokenType::Slash => {
                             if y == 0.0 {
-                                Err(RuntimeError::new("division by zero".to_string()))
+                                Err(RuntimeError::build("division by zero".to_string()))
                             } else {
                                 Ok(Number(x / y))
                             }
@@ -126,7 +126,7 @@ impl Expression {
                         TokenType::GreaterEqual => Ok(Bool(x >= y)),
                         TokenType::Less => Ok(Bool(x < y)),
                         TokenType::LessEqual => Ok(Bool(x <= y)),
-                        op => Err(RuntimeError::new(format!(
+                        op => Err(RuntimeError::build(format!(
                             "unsupported operation between numbers: `{:?}`",
                             op
                         ))),
@@ -137,12 +137,12 @@ impl Expression {
                         TokenType::GreaterEqual => Ok(Bool(s1 >= s2)),
                         TokenType::Less => Ok(Bool(s1 < s2)),
                         TokenType::LessEqual => Ok(Bool(s1 <= s2)),
-                        op => Err(RuntimeError::new(format!(
+                        op => Err(RuntimeError::build(format!(
                             "unsupported operation between strings: `{:?}`",
                             op
                         ))),
                     },
-                    _ => Err(RuntimeError::new(
+                    _ => Err(RuntimeError::build(
                         "can't evaluate expression: unsupported operation between types"
                             .to_string(),
                     )),
@@ -152,7 +152,7 @@ impl Expression {
             Variable(name) => env
                 .get(name)?
                 .as_ref()
-                .ok_or(RuntimeError::new(format!(
+                .ok_or(RuntimeError::build(format!(
                     "variable `{name}` used uninitialized"
                 )))
                 .cloned(),
@@ -206,7 +206,7 @@ trait Callable {
         name: &str,
         arguments: &[Expression],
         env: &mut Environment,
-    ) -> RuntimeResult<Object>;
+    ) -> LoxResult<Object>;
 
     fn arity(&self) -> usize;
 }
@@ -217,7 +217,7 @@ impl Callable for Object {
         name: &str,
         arguments: &[Expression],
         env: &mut Environment,
-    ) -> RuntimeResult<Object> {
+    ) -> LoxResult<Object> {
         match self {
             Func(declaration) => {
                 if let Stmt::Function {
@@ -227,7 +227,7 @@ impl Callable for Object {
                     let arity = self.arity();
                     let num_args = arguments.len();
                     if num_args != arity {
-                        return Err(RuntimeError::new(format!(
+                        return Err(RuntimeError::build(format!(
                             "`{name}`: expected {arity} argument{} but got {num_args}",
                             if arity > 1 { 's' } else { '\0' },
                         )));
@@ -249,7 +249,7 @@ impl Callable for Object {
                     panic!("internal error");
                 }
             }
-            _ => Err(RuntimeError::new(format!("`{name}` is not callable"))),
+            _ => Err(RuntimeError::build(format!("`{name}` is not callable"))),
         }
     }
 

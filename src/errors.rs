@@ -24,9 +24,9 @@ impl LoxError {
                 message,
                 r#type,
             }) => {
-                format!("{}:{}: {} ({:?}", line, col, message, r#type)
+                format!("{}:{}: {} ({})", line, col, message, r#type)
             }
-            Parse(ParseError { token, message }) => format!("{} (on token {:?}", message, token),
+            Parse(ParseError { token, message }) => format!("{} (on token `{}`)", message, token),
             Runtime(RuntimeError { message }) => message.to_owned(),
         }
     }
@@ -68,16 +68,8 @@ pub struct RuntimeError {
 }
 
 impl RuntimeError {
-    pub fn new(message: String) -> Self {
-        Self { message }
-    }
-}
-
-pub type RuntimeResult<T> = Result<T, RuntimeError>;
-
-impl Display for RuntimeError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", "runtime error:".red(), self.message)
+    pub fn build(message: String) -> LoxError {
+        Runtime(Self { message })
     }
 }
 
@@ -88,26 +80,10 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub fn new(token: Token, message: String) -> Self {
-        Self { token, message }
+    pub fn build(token: Token, message: String) -> LoxError {
+        Parse(Self { token, message })
     }
 }
-
-impl Display for ParseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let pos = format!("{}:{}:", self.token.line, self.token.col);
-        write!(
-            f,
-            "{} {} {} (on token `{:?}`)",
-            pos.bold(),
-            "parsing error:".red(),
-            self.message,
-            self.token.r#type,
-        )
-    }
-}
-
-pub type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Debug, PartialEq)]
 pub enum ScanErrorType {
@@ -135,28 +111,12 @@ pub struct ScanError {
 }
 
 impl ScanError {
-    pub fn new(line: usize, col: usize, message: String, r#type: ScanErrorType) -> Self {
-        Self {
+    pub fn build(line: usize, col: usize, message: String, r#type: ScanErrorType) -> LoxError {
+        Scan(Self {
             line,
             col,
             message,
             r#type,
-        }
+        })
     }
 }
-
-impl Display for ScanError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let pos = format!("{}:{}:", self.line, self.col);
-        write!(
-            f,
-            "{} {} ({}) {}",
-            pos.bold(),
-            "syntax error:".red(),
-            self.r#type,
-            self.message
-        )
-    }
-}
-
-pub type ScanResult<T> = Result<T, ScanError>;

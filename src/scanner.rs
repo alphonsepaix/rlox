@@ -327,12 +327,6 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_error(&self, r#type: ScanErrorType, message: &str) -> LoxError {
-        ScanError {
-            line: self.line,
-            col: self.col,
-            message: message.to_string(),
-            r#type,
-        }
-        .into()
+        ScanError::build(self.line, self.col, message.to_string(), r#type)
     }
 }
