@@ -15,6 +15,7 @@
 //                 | printStmt
 //                 | breakStmt
 //                 | continueStmt
+//                 | returnStmt
 //                 | block ;
 // exprStmt       -> expression ";" ;
 // ifStmt         -> "if" "(" expression ")" statement
@@ -26,6 +27,7 @@
 // printStmt      -> "print" expression ";" ;
 // breakStmt      -> "break" ";" ;
 // continueStmt   -> "continue" ";" ;
+// continueStmt   -> "return" expression? ";" ;
 // block          -> "{" declaration* "}" ;
 //
 // expression     -> assignment ;
@@ -48,7 +50,7 @@ use crate::errors::{LoxResult, ParseError};
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
 use crate::grammar::Object::Bool;
-use crate::scanner::TokenType::{LeftBrace, LeftParen, RightParen};
+use crate::scanner::TokenType::{LeftBrace, LeftParen, RightParen, Semicolon};
 use crate::scanner::{Token, TokenType};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -72,6 +74,7 @@ pub enum Stmt {
     },
     Break,
     Continue,
+    Return(Option<Expression>),
     Function {
         name: String,
         body: Vec<Stmt>,
@@ -83,6 +86,7 @@ pub struct Parser {
     tokens: Vec<Token>,
     current: usize,
     enclosing_loops: usize,
+    enclosing_funcs: usize,
 }
 
 impl Parser {
@@ -91,6 +95,7 @@ impl Parser {
             tokens,
             current: 0,
             enclosing_loops: 0,
+            enclosing_funcs: 0,
         }
     }
 
@@ -109,8 +114,11 @@ impl Parser {
                 self.var_declaration()
             }
             TokenType::Fun => {
+                self.enclosing_funcs += 1;
                 self.advance();
-                self.function("function")
+                let res = self.function("function");
+                self.enclosing_funcs -= 1;
+                res
             }
             _ => self.statement(),
         };
@@ -158,16 +166,16 @@ impl Parser {
             TokenType::While => {
                 self.enclosing_loops += 1;
                 self.advance();
-                let stmt = self.while_statement();
-                self.enclosing_loops -= 1;
-                stmt
+                let res = self.while_statement();
+                self.enclosing_loops += 1;
+                res
             }
             TokenType::For => {
                 self.enclosing_loops += 1;
                 self.advance();
-                let stmt = self.for_statement();
+                let res = self.for_statement();
                 self.enclosing_loops -= 1;
-                stmt
+                res
             }
             TokenType::Break => {
                 if self.enclosing_loops == 0 {
@@ -196,6 +204,22 @@ impl Parser {
                     "expected `;` after `continue`".to_string(),
                 )?;
                 Ok(Stmt::Continue)
+            }
+            TokenType::Return => {
+                if self.enclosing_funcs == 0 {
+                    return Err(ParseError::build(
+                        self.peek(),
+                        "`return` outside function".to_string(),
+                    ));
+                }
+                self.advance();
+                let expr = if self.peek_type() != Semicolon {
+                    Some(self.expression()?)
+                } else {
+                    None
+                };
+                self.consume(Semicolon, "expected `;` after `return`".to_string())?;
+                Ok(Stmt::Return(expr))
             }
             _ => self.expr_statement(),
         }

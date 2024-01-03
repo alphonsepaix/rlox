@@ -11,7 +11,7 @@
 //                 | "+"  | "-"  | "*" | "/" ;
 
 use crate::errors::{LoxResult, RuntimeError};
-use crate::interpreter::{Environment, Interpreter};
+use crate::interpreter::{Environment, Interpreter, Signal};
 use crate::scanner::{Token, TokenType};
 use std::fmt::{Display, Formatter};
 use Expression::*;
@@ -176,7 +176,7 @@ impl Expression {
                 // callee is a Variable, get the object living in the env
                 let name = callee.to_string();
                 let callee = callee.evaluate(env)?;
-                callee.call(&name, arguments, env)
+                dbg!(callee.call(&name, arguments, env))
             }
         }
     }
@@ -242,9 +242,19 @@ impl Callable for Object {
                         .zip(objects)
                         .for_each(|(param, value)| env.define(param, Some(value)));
                     let interpreter = Interpreter::new();
-                    interpreter.interpret(env, &body);
+                    let mut return_value = Nil;
+                    if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, &body)? {
+                        let eval = expr.evaluate(env);
+                        return_value = match eval {
+                            Ok(obj) => obj,
+                            Err(e) => {
+                                env.exit_block();
+                                return Err(e);
+                            }
+                        };
+                    }
                     env.exit_block();
-                    Ok(Nil)
+                    Ok(return_value)
                 } else {
                     panic!("internal error");
                 }

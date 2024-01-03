@@ -9,6 +9,7 @@ pub enum LoxError {
     Scan(ScanError),
     Parse(ParseError),
     Runtime(RuntimeError),
+    Internal(String),
 }
 
 use LoxError::*;
@@ -28,6 +29,7 @@ impl LoxError {
             }
             Parse(ParseError { token, message }) => format!("{} (on token `{}`)", message, token),
             Runtime(RuntimeError { message }) => message.to_owned(),
+            Internal(message) => message.to_owned(),
         }
     }
 }
@@ -55,6 +57,7 @@ impl Display for LoxError {
         let prefix = match self {
             Scan(_) | Parse(_) => "syntax error:",
             Runtime(_) => "runtime error:",
+            Internal(_) => "internal error:",
         };
         write!(f, "{} {}", prefix.red(), self.why())
     }

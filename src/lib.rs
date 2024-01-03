@@ -43,7 +43,10 @@ fn run(source: &str, env: &mut Environment) -> LoxResult<()> {
     match result {
         Ok(statements) => {
             let interpreter = Interpreter::new();
-            interpreter.interpret(env, &statements);
+            if let Err(why) = interpreter.interpret(env, &statements) {
+                eprintln!("{why}");
+                process::exit(1);
+            }
         }
         Err(e) => {
             eprintln!("{e}");

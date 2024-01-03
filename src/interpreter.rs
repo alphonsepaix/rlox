@@ -1,5 +1,5 @@
 use crate::errors::{LoxResult, RuntimeError};
-use crate::grammar::Object;
+use crate::grammar::{Expression, Object};
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
@@ -59,6 +59,7 @@ impl Environment {
 pub enum Signal {
     Continue,
     Break,
+    Return(Option<Expression>),
 }
 
 impl Display for Signal {
@@ -66,6 +67,7 @@ impl Display for Signal {
         match self {
             Signal::Continue => write!(f, "continue"),
             Signal::Break => write!(f, "break"),
+            Signal::Return(obj) => write!(f, "return ({obj:?})"),
         }
     }
 }
@@ -137,23 +139,37 @@ impl Interpreter {
                                 }
                                 continue;
                             }
+                            _ => return Ok(Some(signal)),
                         }
                     }
                 }
             }
             Stmt::Break => return Ok(Some(Signal::Break)),
             Stmt::Continue => return Ok(Some(Signal::Continue)),
+            Stmt::Return(expression) => return Ok(Some(Signal::Return(expression.clone()))),
         }
         Ok(None)
     }
 
-    pub fn interpret(self, env: &mut Environment, statements: &[Stmt]) {
+    pub fn interpret(
+        self,
+        env: &mut Environment,
+        statements: &[Stmt],
+    ) -> LoxResult<Option<Signal>> {
         for statement in statements {
-            match self.execute(statement, env) {
+            let exec = self.execute(statement, env);
+            match exec {
                 Err(e) => eprintln!("{e}"),
-                Ok(Some(signal)) => panic!("signal `{signal}` unhandled", signal = signal),
+                Ok(Some(signal)) => {
+                    if let Signal::Return(_) = &signal {
+                        return Ok(Some(signal));
+                    } else {
+                        panic!("internal error");
+                    }
+                }
                 _ => (),
             }
         }
+        Ok(None)
     }
 }
