@@ -176,7 +176,7 @@ impl Expression {
                 // callee is a Variable, get the object living in the env
                 let name = callee.to_string();
                 let callee = callee.evaluate(env)?;
-                dbg!(callee.call(&name, arguments, env))
+                callee.call(&name, arguments, env)
             }
         }
     }

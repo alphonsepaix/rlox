@@ -191,7 +191,7 @@ impl<'a> Scanner<'a> {
             }
             '"' => self.string()?,
             x if x.is_ascii_digit() => self.number()?,
-            c if c.is_ascii_alphabetic() => self.identifier()?,
+            c if (c.is_ascii_alphabetic() || c == '_') => self.identifier()?,
             _ => {
                 return Err(self.scan_error(
                     ScanErrorType::UnexpectedCharacter,
@@ -300,7 +300,7 @@ impl<'a> Scanner<'a> {
 
     fn identifier(&mut self) -> LoxResult<TokenType> {
         while let Some(c) = self.peek() {
-            if !c.is_ascii_alphabetic() {
+            if !(c.is_ascii_alphanumeric() || c == '_') {
                 break;
             }
             self.advance();
