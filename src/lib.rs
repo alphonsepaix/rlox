@@ -42,7 +42,7 @@ pub fn run_prompt() {
 fn run(source: &str, env: &mut Environment) -> ScanResult<()> {
     let mut scanner = Scanner::new(source);
     scanner.scan_tokens()?;
-    let mut parser = Parser::new(scanner.tokens());
+    let mut parser = Parser::new(scanner.tokens);
     let result = parser.parse();
     match result {
         Ok(statements) => {

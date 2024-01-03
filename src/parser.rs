@@ -111,14 +111,14 @@ pub enum Stmt {
     },
 }
 
-pub struct Parser<'a> {
-    tokens: &'a [Token],
+pub struct Parser {
+    tokens: Vec<Token>,
     current: usize,
     enclosing_loops: usize,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(tokens: &'a [Token]) -> Self {
+impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Self {
             tokens,
             current: 0,
@@ -274,7 +274,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        self.consume(RightParen, format!("expected `)` after parameters"))?;
+        self.consume(RightParen, "expected `)` after parameters".to_string())?;
         self.consume(LeftBrace, format!("expected `{{` before {kind} body"))?;
         let body = self.block()?;
         Ok(Stmt::Function {

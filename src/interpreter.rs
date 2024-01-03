@@ -71,6 +71,12 @@ impl Display for Signal {
 
 pub struct Interpreter;
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Self {
         Self
@@ -82,7 +88,7 @@ impl Interpreter {
         statement: &Stmt,
         env: &mut Environment,
     ) -> RuntimeResult<Option<Signal>> {
-        match &statement {
+        match statement {
             Stmt::Var { name, initializer } => {
                 let eval = initializer
                     .as_ref()
@@ -146,7 +152,7 @@ impl Interpreter {
 
     pub fn interpret(self, env: &mut Environment, statements: &[Stmt]) {
         for statement in statements {
-            match self.execute(&statement, env) {
+            match self.execute(statement, env) {
                 Err(e) => eprintln!("{e}"),
                 Ok(Some(signal)) => panic!("signal `{signal}` unhandled", signal = signal),
                 _ => (),

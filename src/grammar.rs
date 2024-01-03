@@ -226,7 +226,7 @@ trait Callable {
     fn call(
         &self,
         name: &str,
-        arguments: &Vec<Expression>,
+        arguments: &[Expression],
         env: &mut Environment,
     ) -> RuntimeResult<Object>;
 
@@ -237,7 +237,7 @@ impl Callable for Object {
     fn call(
         &self,
         name: &str,
-        arguments: &Vec<Expression>,
+        arguments: &[Expression],
         env: &mut Environment,
     ) -> RuntimeResult<Object> {
         match self {

@@ -160,7 +160,7 @@ impl Display for Token {
 pub struct Scanner<'a> {
     source: &'a str,
     stream: Peekable<Chars<'a>>,
-    tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: usize,
@@ -168,10 +168,6 @@ pub struct Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
-    pub fn tokens(&self) -> &Vec<Token> {
-        &self.tokens
-    }
-
     pub fn scan_tokens(&mut self) -> ScanResult<()> {
         while self.peek().is_some() {
             self.start = self.current;
