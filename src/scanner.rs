@@ -1,4 +1,4 @@
-use crate::errors::{ScanError, ScanErrorType, ScanResult};
+use crate::errors::{LoxError, ScanError, ScanErrorType, ScanResult};
 use crate::grammar::Expression;
 use crate::grammar::Expression::Literal;
 use crate::grammar::Object::{Bool, Nil, Number, Str};

@@ -1,4 +1,5 @@
 use claim::assert_ok;
+use rlox::errors::ScanErrorType;
 use rlox::scanner::*;
 
 #[test]
@@ -41,7 +42,7 @@ fn simple_expression_tokenized_correctly() {
         },
     ];
 
-    assert_eq!(scanner.tokens(), &tokens);
+    assert_eq!(&scanner.tokens, &tokens);
 }
 
 #[test]
