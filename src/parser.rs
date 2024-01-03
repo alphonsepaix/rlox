@@ -1,24 +1,28 @@
 // program        -> declaration* EOF ;
 
 // declaration    -> varDecl
-//                | statement ;
+//                 | funDecl
+//                 | statement ;
 // varDecl        -> "var" IDENTIFIER ( "=" expression )? ";" ;
+// funDecl        -> "fun" function ;
+// function       -> IDENTIFIER "(" parameters? ")" block ;
+// parameters     -> IDENTIFIER ( "," IDENTIFIER )* ;
 //
 // statement      -> exprStmt
-//                | ifStmt
-//                | whileStmt
-//                | forStmt
-//                | printStmt
-//                | breakStmt
-//                | continueStmt
-//                | block ;
+//                 | ifStmt
+//                 | whileStmt
+//                 | forStmt
+//                 | printStmt
+//                 | breakStmt
+//                 | continueStmt
+//                 | block ;
 // exprStmt       -> expression ";" ;
 // ifStmt         -> "if" "(" expression ")" statement
-//                ( "else" statement )? ;
+//                   ( "else" statement )? ;
 // whileStmt      -> "while" "(" expression ")" statement ;
 // forStmt        -> "for" "(" ( varDecl | exprStmt | ";" )
-//                  expression? ";"
-//                  expression? ")" statement ;
+//                   expression? ";"
+//                   expression? ")" statement ;
 // printStmt      -> "print" expression ";" ;
 // breakStmt      -> "break" ";" ;
 // continueStmt   -> "continue" ";" ;
@@ -26,7 +30,7 @@
 //
 // expression     -> assignment ;
 // assignment     -> IDENTIFIER "=" assignment
-//                | logic_or ;
+//                 | logic_or ;
 // logic_or       -> logic_and ( "or" logic_and )* ;
 // logic_and      -> equality ( "and" equality )* ;
 // equality       -> comparison ( ( "!=" | "==" ) comparison )* ;
@@ -34,14 +38,16 @@
 // term           -> factor ( ( "-" | "+" ) factor )* ;
 // factor         -> unary ( ( "/" | "*" ) unary )* ;
 // unary          -> ( "!" | "-" ) unary
-//                | primary ;
+//                 | call ;
+// call           -> primary ( "(" arguments? ")" )* ;
 // primary        -> NUMBER | STRING | "true" | "false" | "nil"
-//                | "(" expression ")"
-//                | IDENTIFIER ;
+//                 | "(" expression ")"
+//                 | IDENTIFIER ;
 
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
 use crate::grammar::Object::Bool;
+use crate::scanner::TokenType::{LeftBrace, LeftParen, RightParen};
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
@@ -77,7 +83,7 @@ impl Error for ParseError {}
 
 type ParseResult<T> = Result<T, ParseError>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
     Var {
         name: String,
@@ -98,6 +104,11 @@ pub enum Stmt {
     },
     Break,
     Continue,
+    Function {
+        name: String,
+        body: Vec<Stmt>,
+        parameters: Vec<String>,
+    },
 }
 
 pub struct Parser<'a> {
@@ -124,11 +135,16 @@ impl<'a> Parser<'a> {
     }
 
     fn declaration(&mut self) -> ParseResult<Stmt> {
-        let statement = if self.peek_type() == TokenType::Var {
-            self.advance();
-            self.var_declaration()
-        } else {
-            self.statement()
+        let statement = match self.peek_type() {
+            TokenType::Var => {
+                self.advance();
+                self.var_declaration()
+            }
+            TokenType::Fun => {
+                self.advance();
+                self.function("function")
+            }
+            _ => self.statement(),
         };
         statement.map_err(|e| {
             self.synchronize();
@@ -237,10 +253,41 @@ impl<'a> Parser<'a> {
         Ok(Stmt::Print(expr))
     }
 
+    fn function(&mut self, kind: &str) -> ParseResult<Stmt> {
+        let name = self.consume_identifier(format!("expected {kind} name"))?;
+        self.consume(LeftParen, format!("expected `(` after {kind} name"))?;
+        let mut parameters = vec![];
+        if self.peek_type() != RightParen {
+            loop {
+                let parameter = self.consume_identifier("expected parameter name".to_string())?;
+                parameters.push(parameter);
+                if parameters.len() >= 255 {
+                    return Err(ParseError::new(
+                        self.previous().unwrap(),
+                        "can't have more than 255 parameters".to_string(),
+                    ));
+                }
+                if let TokenType::Comma = self.peek_type() {
+                    self.advance();
+                } else {
+                    break;
+                }
+            }
+        }
+        self.consume(RightParen, format!("expected `)` after parameters"))?;
+        self.consume(LeftBrace, format!("expected `{{` before {kind} body"))?;
+        let body = self.block()?;
+        Ok(Stmt::Function {
+            name,
+            parameters,
+            body,
+        })
+    }
+
     fn if_statement(&mut self) -> ParseResult<Stmt> {
-        self.consume(TokenType::LeftParen, "expected `(` after `if`".to_string())?;
+        self.consume(LeftParen, "expected `(` after `if`".to_string())?;
         let condition = self.expression()?;
-        self.consume(TokenType::RightParen, "expected `)` after `if`".to_string())?;
+        self.consume(RightParen, "expected `)` after `if`".to_string())?;
         let then_stmt = Box::new(self.statement()?);
         let mut else_stmt = None;
         if let TokenType::Else = self.peek_type() {
@@ -463,8 +510,46 @@ impl<'a> Parser<'a> {
                 right: Box::new(right),
             })
         } else {
-            self.primary()
+            self.call()
         }
+    }
+
+    fn call(&mut self) -> ParseResult<Expression> {
+        let callee = self.primary()?;
+
+        // a function can return another function
+        let res = loop {
+            if self.peek_type() == TokenType::LeftParen {
+                self.advance();
+                break self.finish_call(callee)?;
+            } else {
+                break callee;
+            }
+        };
+
+        Ok(res)
+    }
+
+    fn finish_call(&mut self, callee: Expression) -> ParseResult<Expression> {
+        let mut arguments = vec![];
+        if self.peek_type() != RightParen {
+            arguments.push(self.expression()?);
+            while self.peek_type() == TokenType::Comma {
+                self.advance();
+                if arguments.len() >= 255 {
+                    return Err(ParseError::new(
+                        self.peek(),
+                        "can't have more than 255 arguments".to_string(),
+                    ));
+                }
+                arguments.push(self.expression()?);
+            }
+        }
+        self.consume(RightParen, "expected `)` after arguments".to_string())?;
+        Ok(Call {
+            callee: Box::new(callee),
+            arguments,
+        })
     }
 
     fn primary(&mut self) -> ParseResult<Expression> {
@@ -502,6 +587,15 @@ impl<'a> Parser<'a> {
         if self.peek_type() == token_type {
             self.advance();
             Ok(self.peek())
+        } else {
+            Err(ParseError::new(self.peek(), message))
+        }
+    }
+
+    fn consume_identifier(&mut self, message: String) -> ParseResult<String> {
+        if let TokenType::Identifier(name) = self.peek_type() {
+            self.advance();
+            Ok(name)
         } else {
             Err(ParseError::new(self.peek(), message))
         }

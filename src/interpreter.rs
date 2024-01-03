@@ -102,6 +102,9 @@ impl Interpreter {
                     .transpose()?;
                 env.define(name, eval);
             }
+            Stmt::Function { .. } => {
+                todo!();
+            }
             Stmt::Block(block) => {
                 env.enter_block();
                 for s in block {

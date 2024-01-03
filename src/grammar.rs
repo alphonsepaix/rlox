@@ -1,19 +1,21 @@
 // expression     -> literal
-//                | unary
-//                | binary
-//                | grouping ;
+//                 | unary
+//                 | binary
+//                 | grouping ;
 //
 // literal        -> NUMBER | STRING | "true" | "false" | "nil" ;
 // grouping       -> "(" expression ")" ;
 // unary          -> ( "-" | "!" ) expression ;
 // binary         -> expression operator expression ;
 // operator       -> "==" | "!=" | "<" | "<=" | ">" | ">="
-//                | "+"  | "-"  | "*" | "/" ;
+//                 | "+"  | "-"  | "*" | "/" ;
 
+use crate::interpreter::Environment;
 use crate::scanner::{Token, TokenType};
 use colored::Colorize;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use Expression::*;
 
 #[derive(Debug)]
 pub struct RuntimeError {
@@ -73,7 +75,7 @@ impl Display for Object {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expression {
     Literal(Object),
     Unary {
@@ -93,9 +95,11 @@ pub enum Expression {
         op: Token,
         right: Box<Expression>,
     },
+    Call {
+        callee: Box<Expression>,
+        arguments: Vec<Expression>,
+    },
 }
-use crate::interpreter::Environment;
-use Expression::*;
 
 impl Expression {
     pub fn evaluate(&self, env: &mut Environment) -> RuntimeResult<Object> {
@@ -187,6 +191,7 @@ impl Expression {
                 }
                 Ok(Bool(right.evaluate(env)?.truthy()))
             }
+            Call { .. } => todo!(),
         }
     }
 
@@ -201,6 +206,7 @@ impl Expression {
             Variable(name) => name.to_owned(),
             Assign(_, expression) => expression.repr(),
             Logical { .. } => todo!(),
+            Call { .. } => todo!(),
         }
     }
 
@@ -214,6 +220,7 @@ impl Expression {
             Grouping(expression) => expression.rpn(),
             Assign(_, expression) => expression.rpn(),
             Logical { .. } => todo!(),
+            Call { .. } => todo!(),
         }
     }
 }
