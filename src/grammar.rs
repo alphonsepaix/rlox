@@ -65,7 +65,12 @@ impl Object {
         self == other
     }
 
-    fn call(&self, arguments: &Vec<Expression>, env: &mut Environment) -> RuntimeResult<Object> {
+    fn call(
+        &self,
+        name: &str,
+        arguments: &Vec<Expression>,
+        env: &mut Environment,
+    ) -> RuntimeResult<Object> {
         match self {
             Func(declaration) => {
                 if let Stmt::Function {
@@ -91,7 +96,7 @@ impl Object {
                     panic!("internal error");
                 }
             }
-            _ => Err(RuntimeError::new(format!("{self} is not callable"))),
+            _ => Err(RuntimeError::new(format!("`{name}` is not callable"))),
         }
     }
 }
@@ -226,38 +231,28 @@ impl Expression {
             }
             Call { callee, arguments } => {
                 // callee is a Variable, get the object living in the env
+                let name = callee.to_string();
                 let callee = callee.evaluate(env)?;
-                callee.call(arguments, env)
+                callee.call(&name, arguments, env)
             }
         }
     }
+}
 
-    pub fn repr(&self) -> String {
-        match self {
+impl Display for Expression {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
             Literal(object) => object.to_string(),
-            Unary { op, right } => format!("({} {})", op, right.repr()),
+            Unary { op, right } => format!("({} {})", op, right),
             Binary { left, op, right } => {
-                format!("({} {} {})", op, left.repr(), right.repr())
+                format!("({} {} {})", op, left, right)
             }
-            Grouping(expression) => format!("(group {})", expression.repr()),
+            Grouping(expression) => format!("(group {})", expression),
             Variable(name) => name.to_owned(),
-            Assign(_, expression) => expression.repr(),
+            Assign(_, expression) => expression.to_string(),
             Logical { .. } => todo!(),
             Call { .. } => todo!(),
-        }
-    }
-
-    pub fn rpn(&self) -> String {
-        match self {
-            Literal(_) | Variable(_) => self.repr(),
-            Unary { op, right } => format!("{}{}", op, right.rpn()),
-            Binary { left, op, right } => {
-                format!("{} {} {}", left.rpn(), right.rpn(), op)
-            }
-            Grouping(expression) => expression.rpn(),
-            Assign(_, expression) => expression.rpn(),
-            Logical { .. } => todo!(),
-            Call { .. } => todo!(),
-        }
+        };
+        write!(f, "{s}")
     }
 }
