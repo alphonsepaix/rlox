@@ -1,9 +1,8 @@
+use crate::errors::{ScanError, ScanErrorType, ScanResult};
 use crate::grammar::Expression;
 use crate::grammar::Expression::Literal;
 use crate::grammar::Object::{Bool, Nil, Number, Str};
-use colored::Colorize;
 use phf::phf_map;
-use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Peekable;
 use std::str::Chars;
@@ -28,49 +27,6 @@ pub static KEYWORDS: phf::Map<&'static str, TokenType> = phf_map! {
     "break" => TokenType::Break,
     "continue" => TokenType::Continue,
 };
-
-#[derive(Debug, PartialEq)]
-pub enum ScanErrorType {
-    UnexpectedCharacter,
-    InvalidNumber,
-    UnterminatedString,
-}
-
-impl Display for ScanErrorType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ScanErrorType::UnexpectedCharacter => write!(f, "unexpected character"),
-            ScanErrorType::InvalidNumber => write!(f, "invalid number"),
-            ScanErrorType::UnterminatedString => write!(f, "unterminated string"),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct ScanError {
-    line: usize,
-    col: usize,
-    message: String,
-    pub r#type: ScanErrorType,
-}
-
-impl Error for ScanError {}
-
-pub type ScanResult<T> = Result<T, ScanError>;
-
-impl Display for ScanError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let pos = format!("{}:{}:", self.line, self.col);
-        write!(
-            f,
-            "{} {} ({}) {}",
-            pos.bold(),
-            "syntax error:".red(),
-            self.r#type,
-            self.message
-        )
-    }
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TokenType {

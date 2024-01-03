@@ -10,33 +10,11 @@
 // operator       -> "==" | "!=" | "<" | "<=" | ">" | ">="
 //                 | "+"  | "-"  | "*" | "/" ;
 
+use crate::errors::{RuntimeError, RuntimeResult};
 use crate::interpreter::{Environment, Interpreter};
 use crate::scanner::{Token, TokenType};
-use colored::Colorize;
-use std::error::Error;
 use std::fmt::{Display, Formatter};
 use Expression::*;
-
-#[derive(Debug)]
-pub struct RuntimeError {
-    message: String,
-}
-
-impl RuntimeError {
-    pub fn new(message: String) -> Self {
-        Self { message }
-    }
-}
-
-impl Error for RuntimeError {}
-
-pub type RuntimeResult<T> = Result<T, RuntimeError>;
-
-impl Display for RuntimeError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} {}", "runtime error:".red(), self.message)
-    }
-}
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Object {

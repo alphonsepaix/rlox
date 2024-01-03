@@ -1,4 +1,5 @@
-use crate::grammar::{Object, RuntimeError, RuntimeResult};
+use crate::errors::{RuntimeError, RuntimeResult};
+use crate::grammar::Object;
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;

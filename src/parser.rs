@@ -44,44 +44,12 @@
 //                 | "(" expression ")"
 //                 | IDENTIFIER ;
 
+use crate::errors::{ParseError, ParseResult};
 use crate::grammar::Expression;
 use crate::grammar::Expression::*;
 use crate::grammar::Object::Bool;
 use crate::scanner::TokenType::{LeftBrace, LeftParen, RightParen};
 use crate::scanner::{Token, TokenType};
-use colored::Colorize;
-use std::error::Error;
-use std::fmt::{Display, Formatter};
-
-#[derive(Debug)]
-pub struct ParseError {
-    token: Token,
-    message: String,
-}
-
-impl ParseError {
-    fn new(token: Token, message: String) -> Self {
-        Self { token, message }
-    }
-}
-
-impl Display for ParseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let pos = format!("{}:{}:", self.token.line, self.token.col);
-        write!(
-            f,
-            "{} {} {} (on token `{:?}`)",
-            pos.bold(),
-            "parsing error:".red(),
-            self.message,
-            self.token.r#type,
-        )
-    }
-}
-
-impl Error for ParseError {}
-
-type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {

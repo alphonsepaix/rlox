@@ -1,11 +1,13 @@
+pub mod errors;
 pub mod grammar;
 pub mod interpreter;
 pub mod parser;
 pub mod scanner;
 
+use crate::errors::ScanResult;
 use crate::interpreter::{Environment, Interpreter};
 use crate::parser::Parser;
-use crate::scanner::{ScanResult, Scanner};
+use crate::scanner::Scanner;
 use std::io::Write;
 use std::{fs, io, process};
 
