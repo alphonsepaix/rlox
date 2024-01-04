@@ -95,9 +95,19 @@ impl Interpreter {
                     .transpose()?;
                 env.define(name, eval);
             }
-            Stmt::Function { name, .. } => {
-                env.define(name, Some(Object::Func(Box::new(statement.clone()))));
-            }
+            Stmt::Function {
+                name,
+                body,
+                parameters,
+            } => env.define(
+                name,
+                Some(Object::Func {
+                    name: name.to_owned(),
+                    body: body.clone(),
+                    parameters: parameters.clone(),
+                }),
+            ),
+
             Stmt::Block(block) => {
                 env.enter_block();
                 for s in block {

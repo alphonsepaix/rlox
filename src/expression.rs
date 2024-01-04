@@ -9,7 +9,11 @@ pub enum Object {
     Str(String),
     Number(f64),
     Bool(bool),
-    Func(Box<Stmt>),
+    Func {
+        name: String,
+        body: Vec<Stmt>,
+        parameters: Vec<String>,
+    },
     Nil,
 }
 
@@ -213,45 +217,42 @@ impl Callable for Object {
         env: &mut Environment,
     ) -> LoxResult<Object> {
         match self {
-            Func(declaration) => {
-                if let Stmt::Function {
-                    body, parameters, ..
-                } = *declaration.clone()
-                {
-                    let arity = self.arity();
-                    let num_args = arguments.len();
-                    if num_args != arity {
-                        return Err(RuntimeError::build(format!(
-                            "`{name}`: expected {arity} argument{} but got {num_args}",
-                            if arity > 1 { 's' } else { '\0' },
-                        )));
-                    }
-                    env.enter_block();
-                    let objects = arguments
-                        .iter()
-                        .map(|arg| arg.evaluate(env))
-                        .collect::<Result<Vec<_>, _>>()?;
-                    parameters
-                        .iter()
-                        .zip(objects)
-                        .for_each(|(param, value)| env.define(param, Some(value)));
-                    let interpreter = Interpreter::new();
-                    let mut return_value = Nil;
-                    if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, &body)? {
-                        let eval = expr.evaluate(env);
-                        return_value = match eval {
-                            Ok(obj) => obj,
-                            Err(e) => {
-                                env.exit_block();
-                                return Err(e);
-                            }
-                        };
-                    }
-                    env.exit_block();
-                    Ok(return_value)
-                } else {
-                    panic!("internal error");
+            Func {
+                name,
+                body,
+                parameters,
+            } => {
+                let arity = self.arity();
+                let num_args = arguments.len();
+                if num_args != arity {
+                    return Err(RuntimeError::build(format!(
+                        "`{name}`: expected {arity} argument{} but got {num_args}",
+                        if arity > 1 { 's' } else { '\0' },
+                    )));
                 }
+                env.enter_block();
+                let objects = arguments
+                    .iter()
+                    .map(|arg| arg.evaluate(env))
+                    .collect::<Result<Vec<_>, _>>()?;
+                parameters
+                    .iter()
+                    .zip(objects)
+                    .for_each(|(param, value)| env.define(param, Some(value)));
+                let interpreter = Interpreter::new();
+                let mut return_value = Nil;
+                if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, &body)? {
+                    let eval = expr.evaluate(env);
+                    return_value = match eval {
+                        Ok(obj) => obj,
+                        Err(e) => {
+                            env.exit_block();
+                            return Err(e);
+                        }
+                    };
+                }
+                env.exit_block();
+                Ok(return_value)
             }
             _ => Err(RuntimeError::build(format!("`{name}` is not callable"))),
         }
@@ -259,14 +260,8 @@ impl Callable for Object {
 
     fn arity(&self) -> usize {
         match self {
-            Func(declaration) => {
-                if let Stmt::Function { parameters, .. } = declaration.as_ref() {
-                    parameters.len()
-                } else {
-                    panic!("expected function declaration");
-                }
-            }
-            _ => panic!("expected a function"),
+            Func { parameters, .. } => parameters.len(),
+            _ => panic!("not a function"),
         }
     }
 }
