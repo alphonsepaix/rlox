@@ -1,5 +1,0 @@
-var x = 4;
-print x;
-var y = x * 3;
-print y;
-print (3 * 2) / 5 - 7;
