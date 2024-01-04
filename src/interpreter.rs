@@ -139,7 +139,7 @@ impl Interpreter {
                 body,
                 increment,
             } => {
-                while condition.evaluate(env)?.truthy() {
+                while condition.evaluate(env)?.into() {
                     if let Some(signal) = self.execute(body, env)? {
                         match signal {
                             Signal::Break => break,

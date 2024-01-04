@@ -2,9 +2,10 @@ use crate::errors::{LoxResult, RuntimeError};
 use crate::interpreter::{Environment, Interpreter, Signal};
 use crate::scanner::{Token, TokenType};
 use std::fmt::{Display, Formatter};
+use std::ops::Not;
 use Expression::*;
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Debug)]
 pub enum Object {
     Str(String),
     Number(f64),
@@ -19,19 +20,49 @@ pub enum Object {
 
 use crate::parser::Stmt;
 
-impl Object {
-    pub fn truthy(&self) -> bool {
-        !matches!(self, Object::Bool(false) | Object::Nil)
+impl From<Object> for bool {
+    fn from(value: Object) -> Self {
+        !matches!(value, Object::Bool(false) | Object::Nil)
     }
+}
 
-    fn is_equal(&self, other: &Object) -> bool {
-        if self == &Object::Nil && other == &Object::Nil {
-            return true;
+impl Not for Object {
+    type Output = bool;
+    fn not(self) -> Self::Output {
+        !Into::<bool>::into(self)
+    }
+}
+
+impl PartialEq for Object {
+    fn eq(&self, other: &Self) -> bool {
+        use Object::*;
+        match (self, other) {
+            (Str(s1), Str(s2)) => s1 == s2,
+            (Bool(b1), Bool(b2)) => b1 == b2,
+            (Number(x1), Number(x2)) => x1 == x2,
+            (Nil, Nil) => true,
+            _ => false,
         }
-        if self == &Object::Nil {
-            return false;
+    }
+}
+
+impl Clone for Object {
+    fn clone(&self) -> Self {
+        match self {
+            Object::Str(s) => Object::Str(s.clone()),
+            Object::Number(x) => Object::Number(*x),
+            Object::Bool(b) => Object::Bool(*b),
+            Object::Function {
+                name,
+                body,
+                parameters,
+            } => Object::Function {
+                name: name.to_owned(),
+                body: body.clone(),
+                parameters: parameters.clone(),
+            },
+            Object::Nil => Object::Nil,
         }
-        self == other
     }
 }
 
@@ -83,7 +114,7 @@ impl Expression {
             Unary { op, right } => {
                 let right = right.evaluate(env)?;
                 match &op.r#type {
-                    TokenType::Bang => Ok(Bool(!right.truthy())),
+                    TokenType::Bang => Ok(Bool(right.into())),
                     TokenType::Minus => {
                         if let Number(x) = right {
                             Ok(Number(-x))
@@ -103,8 +134,8 @@ impl Expression {
                 let left = left.evaluate(env)?;
                 let right = right.evaluate(env)?;
                 match (left, &op.r#type, right) {
-                    (left, TokenType::EqualEqual, right) => Ok(Bool(left.is_equal(&right))),
-                    (left, TokenType::BangEqual, right) => Ok(Bool(!left.is_equal(&right))),
+                    (left, TokenType::EqualEqual, right) => Ok(Bool(left == right)),
+                    (left, TokenType::BangEqual, right) => Ok(Bool(left != right)),
                     (Number(x), op, Number(y)) => match &op {
                         TokenType::Plus => Ok(Number(x + y)),
                         TokenType::Minus => Ok(Number(x - y)),
@@ -160,13 +191,13 @@ impl Expression {
             Logical { left, op, right } => {
                 let left = left.evaluate(env)?;
                 if let TokenType::Or = op.r#type {
-                    if left.truthy() {
+                    if left.into() {
                         return Ok(Bool(true));
                     }
-                } else if !left.truthy() {
+                } else if !left {
                     return Ok(Bool(false));
                 }
-                Ok(Bool(right.evaluate(env)?.truthy()))
+                Ok(Bool(right.evaluate(env)?.into()))
             }
             Call { callee, arguments } => {
                 // callee is a Variable, get the object living in the env
