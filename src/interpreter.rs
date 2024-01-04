@@ -1,9 +1,11 @@
 use crate::errors::{LoxResult, RuntimeError};
 use crate::expression::{Expression, Object};
+use crate::functions::UserDefinedFunction;
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Environment(Vec<HashMap<String, Option<Object>>>);
@@ -99,15 +101,10 @@ impl Interpreter {
                 name,
                 body,
                 parameters,
-            } => env.define(
-                name,
-                Some(Object::Function {
-                    name: name.to_owned(),
-                    body: body.clone(),
-                    parameters: parameters.clone(),
-                }),
-            ),
-
+            } => {
+                let func = UserDefinedFunction::new(name.clone(), body.clone(), parameters.clone());
+                env.define(name, Some(Object::Callable(Rc::new(func))))
+            }
             Stmt::Block(block) => {
                 env.enter_block();
                 for s in block {

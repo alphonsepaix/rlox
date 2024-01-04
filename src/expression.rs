@@ -1,24 +1,25 @@
 use crate::errors::{LoxResult, RuntimeError};
-use crate::interpreter::{Environment, Interpreter, Signal};
+use crate::functions::Callable;
+use crate::interpreter::Environment;
 use crate::scanner::{Token, TokenType};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Not;
+use std::rc::Rc;
 use Expression::*;
 
 pub enum Object {
     Str(String),
     Number(f64),
     Bool(bool),
-    Function {
-        name: String,
-        body: Vec<Stmt>,
-        parameters: Vec<String>,
-    },
-    Callable(Box<dyn Callable>),
+    Callable(Rc<dyn Callable>),
     Nil,
 }
 
-use crate::parser::Stmt;
+impl Object {
+    pub fn callable(&self) -> bool {
+        matches!(self, Object::Callable(..))
+    }
+}
 
 impl From<Object> for bool {
     fn from(value: Object) -> Self {
@@ -39,8 +40,7 @@ impl Debug for Object {
             Object::Str(s) => write!(f, "{s:?}"),
             Object::Number(x) => write!(f, "{x:?}"),
             Object::Bool(b) => write!(f, "{b:?}"),
-            Object::Function { .. } => write!(f, "<function>"),
-            Object::Callable(_) => write!(f, "<callable>"),
+            Object::Callable(c) => write!(f, "{}", *c),
             Object::Nil => write!(f, "nil"),
         }
     }
@@ -65,16 +65,8 @@ impl Clone for Object {
             Object::Str(s) => Object::Str(s.clone()),
             Object::Number(x) => Object::Number(*x),
             Object::Bool(b) => Object::Bool(*b),
-            Object::Function {
-                name,
-                body,
-                parameters,
-            } => Object::Function {
-                name: name.to_owned(),
-                body: body.clone(),
-                parameters: parameters.clone(),
-            },
-            Object::Nil | Object::Callable(..) => Object::Nil,
+            Object::Nil => Object::Nil,
+            Object::Callable(f) => Object::Callable(Rc::clone(f)),
         }
     }
 }
@@ -88,7 +80,6 @@ impl Display for Object {
             Number(x) => write!(f, "{x}"),
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
-            Function { .. } => write!(f, "<fn>"),
             Callable(_) => write!(f, "<callable>"),
         }
     }
@@ -181,8 +172,12 @@ impl Expression {
                             op
                         ))),
                     },
-                    (Str(s1), TokenType::Plus, right) => Ok(Str(format!("{}{}", s1, right))),
-                    (left, TokenType::Plus, Str(s2)) => Ok(Str(format!("{}{}", left, s2))),
+                    (Str(s1), TokenType::Plus, right) if right != Nil => {
+                        Ok(Str(format!("{}{}", s1, right)))
+                    }
+                    (left, TokenType::Plus, Str(s2)) if left != Nil => {
+                        Ok(Str(format!("{}{}", left, s2)))
+                    }
                     _ => Err(RuntimeError::build(
                         "can't evaluate expression: unsupported operation between types"
                             .to_string(),
@@ -217,7 +212,11 @@ impl Expression {
                 // callee is a Variable, get the object living in the env
                 let name = callee.to_string();
                 let callee = callee.evaluate(env)?;
-                callee.call(&name, arguments, env)
+                if let Callable(f) = callee {
+                    f.call(&name, arguments, env)
+                } else {
+                    Err(RuntimeError::build(format!("{name} is not callable")))
+                }
             }
         }
     }
@@ -238,73 +237,5 @@ impl Display for Expression {
             Call { .. } => todo!(),
         };
         write!(f, "{s}")
-    }
-}
-
-pub trait Callable {
-    fn call(
-        &self,
-        name: &str,
-        arguments: &[Expression],
-        env: &mut Environment,
-    ) -> LoxResult<Object>;
-
-    fn arity(&self) -> usize;
-}
-
-impl Callable for Object {
-    fn call(
-        &self,
-        name: &str,
-        arguments: &[Expression],
-        env: &mut Environment,
-    ) -> LoxResult<Object> {
-        match self {
-            Object::Function {
-                name,
-                body,
-                parameters,
-            } => {
-                let arity = self.arity();
-                let num_args = arguments.len();
-                if num_args != arity {
-                    return Err(RuntimeError::build(format!(
-                        "`{name}`: expected {arity} argument{} but got {num_args}",
-                        if arity > 1 { 's' } else { '\0' },
-                    )));
-                }
-                env.enter_block();
-                let objects = arguments
-                    .iter()
-                    .map(|arg| arg.evaluate(env))
-                    .collect::<Result<Vec<_>, _>>()?;
-                parameters
-                    .iter()
-                    .zip(objects)
-                    .for_each(|(param, value)| env.define(param, Some(value)));
-                let interpreter = Interpreter::new();
-                let mut return_value = Object::Nil;
-                if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, body)? {
-                    let eval = expr.evaluate(env);
-                    return_value = match eval {
-                        Ok(obj) => obj,
-                        Err(e) => {
-                            env.exit_block();
-                            return Err(e);
-                        }
-                    };
-                }
-                env.exit_block();
-                Ok(return_value)
-            }
-            _ => Err(RuntimeError::build(format!("`{name}` is not callable"))),
-        }
-    }
-
-    fn arity(&self) -> usize {
-        match self {
-            Object::Function { parameters, .. } => parameters.len(),
-            _ => panic!("not a function"),
-        }
     }
 }
