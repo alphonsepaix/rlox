@@ -50,7 +50,7 @@ pub enum TokenType {
     LessEqual,
 
     Identifier(String),
-    String(String),
+    Str(String),
     Number(f64),
 
     And,
@@ -81,7 +81,7 @@ impl TryInto<Expression> for TokenType {
     fn try_into(self) -> Result<Expression, Self::Error> {
         use Object::*;
         match self {
-            TokenType::String(s) => Ok(Literal(Str(s))),
+            TokenType::Str(s) => Ok(Literal(Str(s))),
             TokenType::Number(x) => Ok(Literal(Number(x))),
             TokenType::False => Ok(Literal(Bool(false))),
             TokenType::Nil => Ok(Literal(Nil)),
@@ -266,7 +266,7 @@ impl<'a> Scanner<'a> {
             return Err(self.scan_error(ScanErrorType::UnterminatedString, "missing \" delimiter"));
         }
         self.advance();
-        Ok(TokenType::String(s))
+        Ok(TokenType::Str(s))
     }
 
     fn number(&mut self) -> LoxResult<TokenType> {

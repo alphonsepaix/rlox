@@ -15,7 +15,7 @@ fn simple_expression_tokenized_correctly() {
         TokenType::Let,
         TokenType::Identifier("name".to_string()),
         TokenType::Equal,
-        TokenType::String("Alphonse".to_string()),
+        TokenType::Str("Alphonse".to_string()),
         TokenType::Semicolon,
         TokenType::Eof,
     ];

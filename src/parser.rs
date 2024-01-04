@@ -520,7 +520,7 @@ impl Parser {
             | TokenType::False
             | TokenType::Nil
             | TokenType::Number(_)
-            | TokenType::String(_) => {
+            | TokenType::Str(_) => {
                 self.advance();
                 Ok(token_type.try_into().unwrap())
             }
