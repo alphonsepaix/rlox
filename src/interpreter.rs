@@ -101,7 +101,7 @@ impl Interpreter {
                 parameters,
             } => env.define(
                 name,
-                Some(Object::Func {
+                Some(Object::Function {
                     name: name.to_owned(),
                     body: body.clone(),
                     parameters: parameters.clone(),

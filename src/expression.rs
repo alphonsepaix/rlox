@@ -9,7 +9,7 @@ pub enum Object {
     Str(String),
     Number(f64),
     Bool(bool),
-    Func {
+    Function {
         name: String,
         body: Vec<Stmt>,
         parameters: Vec<String>,
@@ -18,18 +18,17 @@ pub enum Object {
 }
 
 use crate::parser::Stmt;
-use Object::*;
 
 impl Object {
     pub fn truthy(&self) -> bool {
-        !matches!(self, Bool(false) | Nil)
+        !matches!(self, Object::Bool(false) | Object::Nil)
     }
 
     fn is_equal(&self, other: &Object) -> bool {
-        if self == &Nil && other == &Nil {
+        if self == &Object::Nil && other == &Object::Nil {
             return true;
         }
-        if self == &Nil {
+        if self == &Object::Nil {
             return false;
         }
         self == other
@@ -38,12 +37,14 @@ impl Object {
 
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use Object::*;
+
         match self {
             Str(s) => write!(f, "{s}"),
             Number(x) => write!(f, "{x}"),
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
-            Func { .. } => write!(f, "<fn>"),
+            Function { .. } => write!(f, "<fn>"),
         }
     }
 }
@@ -76,6 +77,7 @@ pub enum Expression {
 
 impl Expression {
     pub fn evaluate(&self, env: &mut Environment) -> LoxResult<Object> {
+        use Object::*;
         match self {
             Literal(object) => Ok(object.clone()),
             Unary { op, right } => {
@@ -217,7 +219,7 @@ impl Callable for Object {
         env: &mut Environment,
     ) -> LoxResult<Object> {
         match self {
-            Func {
+            Object::Function {
                 name,
                 body,
                 parameters,
@@ -240,7 +242,7 @@ impl Callable for Object {
                     .zip(objects)
                     .for_each(|(param, value)| env.define(param, Some(value)));
                 let interpreter = Interpreter::new();
-                let mut return_value = Nil;
+                let mut return_value = Object::Nil;
                 if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, &body)? {
                     let eval = expr.evaluate(env);
                     return_value = match eval {
@@ -260,7 +262,7 @@ impl Callable for Object {
 
     fn arity(&self) -> usize {
         match self {
-            Func { parameters, .. } => parameters.len(),
+            Object::Function { parameters, .. } => parameters.len(),
             _ => panic!("not a function"),
         }
     }

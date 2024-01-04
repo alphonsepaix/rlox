@@ -1,7 +1,5 @@
 use crate::errors::{LoxError, LoxResult, ScanError, ScanErrorType};
-use crate::expression::Expression;
-use crate::expression::Expression::Literal;
-use crate::expression::Object::{Bool, Nil, Number, Str};
+use crate::expression::{Expression, Expression::Literal, Object};
 use phf::phf_map;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Peekable;
@@ -81,6 +79,7 @@ impl TryInto<Expression> for TokenType {
     type Error = ();
 
     fn try_into(self) -> Result<Expression, Self::Error> {
+        use Object::*;
         match self {
             TokenType::String(s) => Ok(Literal(Str(s))),
             TokenType::Number(x) => Ok(Literal(Number(x))),
@@ -191,7 +190,7 @@ impl<'a> Scanner<'a> {
             }
             '"' => self.string()?,
             x if x.is_ascii_digit() => self.number()?,
-            c if (c.is_ascii_alphabetic() || c == '_') => self.identifier()?,
+            c if c.is_ascii_alphabetic() || c == '_' => self.identifier()?,
             _ => {
                 return Err(self.scan_error(
                     ScanErrorType::UnexpectedCharacter,

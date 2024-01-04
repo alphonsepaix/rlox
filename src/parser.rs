@@ -1,8 +1,5 @@
 use crate::errors::{LoxResult, ParseError};
-use crate::expression::Expression;
-use crate::expression::Expression::*;
-use crate::expression::Object::Bool;
-use crate::scanner::TokenType::{LeftBrace, LeftParen, RightParen, Semicolon};
+use crate::expression::{Expression, Expression::*, Object};
 use crate::scanner::{Token, TokenType};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -112,7 +109,7 @@ impl Parser {
                 self.advance();
                 Ok(Stmt::Null)
             }
-            LeftBrace => {
+            TokenType::LeftBrace => {
                 self.advance();
                 self.block().map(Stmt::Block)
             }
@@ -170,12 +167,15 @@ impl Parser {
                     ));
                 }
                 self.advance();
-                let expr = if self.peek_type() != Semicolon {
+                let expr = if self.peek_type() != TokenType::Semicolon {
                     Some(self.expression()?)
                 } else {
                     None
                 };
-                self.consume(Semicolon, "expected `;` after `return`".to_string())?;
+                self.consume(
+                    TokenType::Semicolon,
+                    "expected `;` after `return`".to_string(),
+                )?;
                 Ok(Stmt::Return(expr))
             }
             _ => self.expr_statement(),
@@ -204,9 +204,12 @@ impl Parser {
 
     fn function(&mut self, kind: &str) -> LoxResult<Stmt> {
         let name = self.consume_identifier(format!("expected {kind} name"))?;
-        self.consume(LeftParen, format!("expected `(` after {kind} name"))?;
+        self.consume(
+            TokenType::LeftParen,
+            format!("expected `(` after {kind} name"),
+        )?;
         let mut parameters = vec![];
-        if self.peek_type() != RightParen {
+        if self.peek_type() != TokenType::RightParen {
             loop {
                 let parameter = self.consume_identifier("expected parameter name".to_string())?;
                 parameters.push(parameter);
@@ -223,8 +226,14 @@ impl Parser {
                 }
             }
         }
-        self.consume(RightParen, "expected `)` after parameters".to_string())?;
-        self.consume(LeftBrace, format!("expected `{{` before {kind} body"))?;
+        self.consume(
+            TokenType::RightParen,
+            "expected `)` after parameters".to_string(),
+        )?;
+        self.consume(
+            TokenType::LeftBrace,
+            format!("expected `{{` before {kind} body"),
+        )?;
         let body = self.block()?;
         Ok(Stmt::Function {
             name,
@@ -234,9 +243,9 @@ impl Parser {
     }
 
     fn if_statement(&mut self) -> LoxResult<Stmt> {
-        self.consume(LeftParen, "expected `(` after `if`".to_string())?;
+        self.consume(TokenType::LeftParen, "expected `(` after `if`".to_string())?;
         let condition = self.expression()?;
-        self.consume(RightParen, "expected `)` after `if`".to_string())?;
+        self.consume(TokenType::RightParen, "expected `)` after `if`".to_string())?;
         let then_stmt = Box::new(self.statement()?);
         let mut else_stmt = None;
         if let TokenType::Else = self.peek_type() {
@@ -251,9 +260,15 @@ impl Parser {
     }
 
     fn while_statement(&mut self) -> LoxResult<Stmt> {
-        self.consume(LeftParen, "expected `(` after `while`".to_string())?;
+        self.consume(
+            TokenType::LeftParen,
+            "expected `(` after `while`".to_string(),
+        )?;
         let condition = self.expression()?;
-        self.consume(RightParen, "expected `)` after `while`".to_string())?;
+        self.consume(
+            TokenType::RightParen,
+            "expected `)` after `while`".to_string(),
+        )?;
         let stmt = Box::new(self.statement()?);
         Ok(Stmt::While {
             condition,
@@ -263,7 +278,7 @@ impl Parser {
     }
 
     fn for_statement(&mut self) -> LoxResult<Stmt> {
-        self.consume(LeftParen, "expected `(` after `for`".to_string())?;
+        self.consume(TokenType::LeftParen, "expected `(` after `for`".to_string())?;
         let initializer = match self.peek_type() {
             TokenType::Let => {
                 self.advance();
@@ -280,8 +295,9 @@ impl Parser {
         };
         let condition = self
             .null_expression(TokenType::Semicolon, "expected `;` after loop condition")?
-            .unwrap_or(Literal(Bool(true)));
-        let increment = self.null_expression(RightParen, "expected `)` after for clauses")?;
+            .unwrap_or(Literal(Object::Bool(true)));
+        let increment =
+            self.null_expression(TokenType::RightParen, "expected `)` after for clauses")?;
         let body = self.statement()?;
 
         let mut statements = vec![];
@@ -461,7 +477,7 @@ impl Parser {
 
         // a function can return another function
         let res = {
-            if self.peek_type() == LeftParen {
+            if self.peek_type() == TokenType::LeftParen {
                 self.advance();
                 self.finish_call(callee)?
             } else {
@@ -474,7 +490,7 @@ impl Parser {
 
     fn finish_call(&mut self, callee: Expression) -> LoxResult<Expression> {
         let mut arguments = vec![];
-        if self.peek_type() != RightParen {
+        if self.peek_type() != TokenType::RightParen {
             arguments.push(self.expression()?);
             while self.peek_type() == TokenType::Comma {
                 self.advance();
@@ -487,7 +503,10 @@ impl Parser {
                 arguments.push(self.expression()?);
             }
         }
-        self.consume(RightParen, "expected `)` after arguments".to_string())?;
+        self.consume(
+            TokenType::RightParen,
+            "expected `)` after arguments".to_string(),
+        )?;
         Ok(Call {
             callee: Box::new(callee),
             arguments,
@@ -505,10 +524,13 @@ impl Parser {
                 self.advance();
                 Ok(token_type.try_into().unwrap())
             }
-            LeftParen => {
+            TokenType::LeftParen => {
                 self.advance();
                 let expr = self.expression()?;
-                self.consume(RightParen, "missing `)` after expression".to_string())?;
+                self.consume(
+                    TokenType::RightParen,
+                    "missing `)` after expression".to_string(),
+                )?;
                 Ok(Grouping(Box::new(expr)))
             }
             TokenType::Identifier(name) => {
