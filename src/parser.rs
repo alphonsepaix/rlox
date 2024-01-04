@@ -1,57 +1,7 @@
-// program        -> declaration* EOF ;
-
-// declaration    -> varDecl
-//                 | funDecl
-//                 | statement ;
-// varDecl        -> "var" IDENTIFIER ( "=" expression )? ";" ;
-// funDecl        -> "fun" function ;
-// function       -> IDENTIFIER "(" parameters? ")" block ;
-// parameters     -> IDENTIFIER ( "," IDENTIFIER )* ;
-//
-// statement      -> exprStmt
-//                 | ifStmt
-//                 | whileStmt
-//                 | forStmt
-//                 | printStmt
-//                 | breakStmt
-//                 | continueStmt
-//                 | returnStmt
-//                 | nullStmt
-//                 | block ;
-// exprStmt       -> expression ";" ;
-// ifStmt         -> "if" "(" expression ")" statement
-//                   ( "else" statement )? ;
-// whileStmt      -> "while" "(" expression ")" statement ;
-// forStmt        -> "for" "(" ( varDecl | exprStmt | ";" )
-//                   expression? ";"
-//                   expression? ")" statement ;
-// printStmt      -> "print" expression ";" ;
-// breakStmt      -> "break" ";" ;
-// continueStmt   -> "continue" ";" ;
-// returnStmt     -> "return" expression? ";" ;
-// nullStmt       -> ";" ;
-// block          -> "{" declaration* "}" ;
-//
-// expression     -> assignment ;
-// assignment     -> IDENTIFIER "=" assignment
-//                 | logic_or ;
-// logic_or       -> logic_and ( "or" logic_and )* ;
-// logic_and      -> equality ( "and" equality )* ;
-// equality       -> comparison ( ( "!=" | "==" ) comparison )* ;
-// comparison     -> term ( ( ">" | ">=" | "<" | "<=" ) term )* ;
-// term           -> factor ( ( "-" | "+" ) factor )* ;
-// factor         -> unary ( ( "/" | "*" ) unary )* ;
-// unary          -> ( "!" | "-" ) unary
-//                 | call ;
-// call           -> primary ( "(" arguments? ")" )* ;
-// primary        -> NUMBER | STRING | "true" | "false" | "nil"
-//                 | "(" expression ")"
-//                 | IDENTIFIER ;
-
 use crate::errors::{LoxResult, ParseError};
-use crate::grammar::Expression;
-use crate::grammar::Expression::*;
-use crate::grammar::Object::Bool;
+use crate::expression::Expression;
+use crate::expression::Expression::*;
+use crate::expression::Object::Bool;
 use crate::scanner::TokenType::{LeftBrace, LeftParen, RightParen, Semicolon};
 use crate::scanner::{Token, TokenType};
 

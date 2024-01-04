@@ -1,5 +1,5 @@
-use rlox::grammar::Expression::*;
-use rlox::grammar::Object::*;
+use rlox::expression::Expression::*;
+use rlox::expression::Object::*;
 use rlox::scanner::{Token, TokenType};
 
 #[test]

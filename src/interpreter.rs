@@ -1,5 +1,5 @@
 use crate::errors::{LoxResult, RuntimeError};
-use crate::grammar::{Expression, Object};
+use crate::expression::{Expression, Object};
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;

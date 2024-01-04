@@ -183,7 +183,8 @@ print "Outside!";
 fn infinite_loops() {
     let source = r#"
 for (;;)         // infinite loop
-print "Hello!";
+    ;
+print "Outside!";
 "#;
     let mut cmd = Command::cargo_bin("rlox").unwrap();
     cmd.arg("-c")

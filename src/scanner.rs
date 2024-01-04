@@ -1,7 +1,7 @@
 use crate::errors::{LoxError, LoxResult, ScanError, ScanErrorType};
-use crate::grammar::Expression;
-use crate::grammar::Expression::Literal;
-use crate::grammar::Object::{Bool, Nil, Number, Str};
+use crate::expression::Expression;
+use crate::expression::Expression::Literal;
+use crate::expression::Object::{Bool, Nil, Number, Str};
 use phf::phf_map;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::Peekable;
