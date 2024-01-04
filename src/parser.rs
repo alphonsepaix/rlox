@@ -109,11 +109,11 @@ impl Parser {
 
     fn declaration(&mut self) -> LoxResult<Stmt> {
         let statement = match self.peek_type() {
-            TokenType::Var => {
+            TokenType::Let => {
                 self.advance();
                 self.var_declaration()
             }
-            TokenType::Fun => {
+            TokenType::Fn => {
                 self.enclosing_funcs += 1;
                 self.advance();
                 let res = self.function("function");
@@ -308,7 +308,7 @@ impl Parser {
     fn for_statement(&mut self) -> LoxResult<Stmt> {
         self.consume(LeftParen, "expected `(` after `for`".to_string())?;
         let initializer = match self.peek_type() {
-            TokenType::Var => {
+            TokenType::Let => {
                 self.advance();
                 Some(Box::new(self.var_declaration()?))
             }
@@ -592,8 +592,8 @@ impl Parser {
             }
             match self.peek_type() {
                 TokenType::Class
-                | TokenType::Fun
-                | TokenType::Var
+                | TokenType::Fn
+                | TokenType::Let
                 | TokenType::For
                 | TokenType::If
                 | TokenType::While

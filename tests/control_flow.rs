@@ -5,7 +5,7 @@ use std::time::Duration;
 #[test]
 fn if_statement() {
     let source = r#"
-var x = 3;
+let x = 3;
 if (x > 9) {
     print "x > 9!";
 } else {
@@ -21,7 +21,7 @@ if (x > 9) {
 #[test]
 fn for_statement() {
     let source = r#"
-var i = 0;
+let i = 0;
 for (; i < 10; i = i + 1)
     if (i > 5)
         print i;
@@ -43,7 +43,7 @@ for (; i < 10; i = i + 1)
 #[test]
 fn for_constant_expr() {
     let source = r#"
-for (var i = 0; i < 10; i = i + 1)
+for (let i = 0; i < 10; i = i + 1)
     print "Alphonse";
 "#;
     let mut cmd = Command::cargo_bin("rlox").unwrap();
@@ -59,7 +59,7 @@ for (var i = 0; i < 10; i = i + 1)
 #[test]
 fn while_statement() {
     let source = r#"
-var i = 3;
+let i = 3;
 while (i < 8) {
     i = i + 1;
     if (i > 4)
@@ -83,7 +83,7 @@ while (i < 8) {
 #[test]
 fn continue_statement() {
     let source = r#"
-for (var i = 0; i < 20; i = i + 1) {
+for (let i = 0; i < 20; i = i + 1) {
     if (i <= 10)
         continue;
     print i;
@@ -106,7 +106,7 @@ for (var i = 0; i < 20; i = i + 1) {
 #[test]
 fn break_statement_in_while_loop() {
     let source = r#"
-var i = 0;
+let i = 0;
 while (i < 10) {
     i = i + 2;
     if (i >= 7)
@@ -121,7 +121,7 @@ print i;
 #[test]
 fn break_outside_loop_is_detected_correctly() {
     let source = r#"
-for (var i = 0; i < 10; i = i + 1) {
+for (let i = 0; i < 10; i = i + 1) {
     // do complicated stuff
 }
 break;
@@ -138,7 +138,7 @@ break;
 #[test]
 fn continue_outside_loop_is_detected_correctly() {
     let source = r#"
-for (var i = 0; i < 10; i = i + 1) {
+for (let i = 0; i < 10; i = i + 1) {
     // do complicated stuff
     break;
 }
@@ -193,7 +193,7 @@ print "Hello!";
         .failure();
 
     let source = r#"
-var i = 0;
+let i = 0;
 while (i < 10)
     i = i - 1;      // user meant to increment i surely
 "#;
@@ -208,11 +208,11 @@ while (i < 10)
 #[test]
 fn fibonacci() {
     let source = r#"
-var a = 0;
-var b = 1;
-var n = 10;
-for (var i = 0; i < n - 1; i = i + 1) {
-    var tmp = b;
+let a = 0;
+let b = 1;
+let n = 10;
+for (let i = 0; i < n - 1; i = i + 1) {
+    let tmp = b;
     b = b + a;
     a = tmp;
 }

@@ -6,13 +6,13 @@ use rlox::scanner::*;
 
 #[test]
 fn simple_expression_tokenized_correctly() {
-    let input = r#"var name = "Alphonse";"#;
+    let input = r#"let name = "Alphonse";"#;
     let mut scanner = Scanner::new(input);
 
     assert_ok!(scanner.scan_tokens());
 
     let types = vec![
-        TokenType::Var,
+        TokenType::Let,
         TokenType::Identifier("name".to_string()),
         TokenType::Equal,
         TokenType::String("Alphonse".to_string()),
@@ -30,7 +30,7 @@ fn simple_expression_tokenized_correctly() {
 
 #[test]
 fn unterminated_string_returns_error() {
-    let input = r#"var name = "Alphonse;"#;
+    let input = r#"let name = "Alphonse;"#;
     let mut scanner = Scanner::new(input);
     let err = scanner.scan_tokens().err().unwrap();
     assert!(matches!(
@@ -44,7 +44,7 @@ fn unterminated_string_returns_error() {
 
 #[test]
 fn invalid_number_returns_error() {
-    let input = "var x = 1253.f";
+    let input = "let x = 1253.f";
     let mut scanner = Scanner::new(input);
     let err = scanner.scan_tokens().err().unwrap();
     assert!(matches!(
