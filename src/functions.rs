@@ -1,5 +1,5 @@
 use crate::errors::{LoxError, LoxResult, RuntimeError};
-use crate::expression::{Expression, Object};
+use crate::expression::Object;
 use crate::interpreter::{Environment, Interpreter, Signal};
 use crate::parser::Stmt;
 use std::fmt::{Display, Formatter};
@@ -7,7 +7,7 @@ use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub trait Callable {
-    fn call(&self, arguments: &[Expression], env: &mut Environment) -> LoxResult<Object>;
+    fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object>;
 
     fn arity(&self) -> usize;
 
@@ -21,12 +21,11 @@ pub trait Callable {
 pub struct Exit;
 
 impl Callable for Exit {
-    fn call(&self, arguments: &[Expression], env: &mut Environment) -> LoxResult<Object> {
-        let arg = arguments.first().expect("expected one argument");
-        let value = arg.evaluate(env)?;
+    fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let value = objects.first().expect("expected one argument");
         if let Object::Number(x) = value {
             if x.fract() == 0.0 {
-                let exit_code = x as i32;
+                let exit_code = *x as i32;
                 process::exit(exit_code);
             }
         }
@@ -52,7 +51,7 @@ impl Callable for Exit {
 pub struct Quit;
 
 impl Callable for Quit {
-    fn call(&self, _arguments: &[Expression], _env: &mut Environment) -> LoxResult<Object> {
+    fn call(&self, _objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
         process::exit(0);
     }
 
@@ -72,7 +71,7 @@ impl Callable for Quit {
 pub struct Clock;
 
 impl Callable for Clock {
-    fn call(&self, _arguments: &[Expression], _env: &mut Environment) -> LoxResult<Object> {
+    fn call(&self, _objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
         match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(time) => Ok(Object::Number(time.as_secs_f64())),
             Err(_) => Err(LoxError::Internal("could not get system time".to_string())),
@@ -95,9 +94,8 @@ impl Callable for Clock {
 pub struct Help;
 
 impl Callable for Help {
-    fn call(&self, arguments: &[Expression], env: &mut Environment) -> LoxResult<Object> {
-        let arg = arguments.first().expect("expected one argument");
-        let value = arg.evaluate(env)?;
+    fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let value = objects.first().expect("expected one argument");
         match value {
             Object::Str(_) => println!("<string> object"),
             Object::Number(_) => println!("<f64> object"),
@@ -123,9 +121,8 @@ impl Callable for Help {
 pub struct Print;
 
 impl Callable for Print {
-    fn call(&self, arguments: &[Expression], env: &mut Environment) -> LoxResult<Object> {
-        let arg = arguments.first().expect("expected one argument");
-        let value = arg.evaluate(env)?;
+    fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let value = objects.first().expect("expected one argument");
         println!("{value}");
         Ok(Object::Nil)
     }
@@ -160,12 +157,8 @@ impl UserDefinedFunction {
 }
 
 impl Callable for UserDefinedFunction {
-    fn call(&self, arguments: &[Expression], env: &mut Environment) -> LoxResult<Object> {
+    fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object> {
         env.enter_block();
-        let objects = arguments
-            .iter()
-            .map(|arg| arg.evaluate(env))
-            .collect::<Result<Vec<_>, _>>()?;
         self.parameters
             .iter()
             .zip(objects)

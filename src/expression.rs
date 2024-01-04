@@ -221,7 +221,11 @@ impl Expression {
                             if arity > 1 { 's' } else { '\0' },
                         )));
                     }
-                    f.call(arguments, env)
+                    let objects = arguments
+                        .iter()
+                        .map(|arg| arg.evaluate(env))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    f.call(objects, env)
                 } else {
                     Err(RuntimeError::build(format!("{name} is not callable")))
                 }
