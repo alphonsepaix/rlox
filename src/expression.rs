@@ -136,12 +136,8 @@ impl Expression {
                             op
                         ))),
                     },
-                    (Str(s1), TokenType::Plus, right) => {
-                        Ok(Str(format!("{}{}", s1, right.to_string())))
-                    }
-                    (left, TokenType::Plus, Str(s2)) => {
-                        Ok(Str(format!("{}{}", left.to_string(), s2)))
-                    }
+                    (Str(s1), TokenType::Plus, right) => Ok(Str(format!("{}{}", s1, right))),
+                    (left, TokenType::Plus, Str(s2)) => Ok(Str(format!("{}{}", left, s2))),
                     _ => Err(RuntimeError::build(
                         "can't evaluate expression: unsupported operation between types"
                             .to_string(),
@@ -243,7 +239,7 @@ impl Callable for Object {
                     .for_each(|(param, value)| env.define(param, Some(value)));
                 let interpreter = Interpreter::new();
                 let mut return_value = Object::Nil;
-                if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, &body)? {
+                if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, body)? {
                     let eval = expr.evaluate(env);
                     return_value = match eval {
                         Ok(obj) => obj,
