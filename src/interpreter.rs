@@ -1,6 +1,6 @@
 use crate::errors::{LoxResult, RuntimeError};
 use crate::expression::{Expression, Object};
-use crate::functions::UserDefinedFunction;
+use crate::functions::{Clock, Exit, Help, Print, Quit, UserDefinedFunction};
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
@@ -18,7 +18,13 @@ impl Default for Environment {
 
 impl Environment {
     pub fn new() -> Self {
-        Self(vec![HashMap::new()])
+        let mut map = HashMap::new();
+        map.insert("clock".to_string(), Some(Object::Callable(Rc::new(Clock))));
+        map.insert("print".to_string(), Some(Object::Callable(Rc::new(Print))));
+        map.insert("help".to_string(), Some(Object::Callable(Rc::new(Help))));
+        map.insert("exit".to_string(), Some(Object::Callable(Rc::new(Exit))));
+        map.insert("quit".to_string(), Some(Object::Callable(Rc::new(Quit))));
+        Self(vec![map])
     }
 
     pub fn define(&mut self, name: &str, value: Option<Object>) {
@@ -116,7 +122,6 @@ impl Interpreter {
                 }
                 env.exit_block();
             }
-            Stmt::Print(expression) => println!("{}", expression.evaluate(env)?),
             Stmt::Expr(expression) => {
                 expression.evaluate(env)?;
             }

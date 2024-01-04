@@ -11,7 +11,7 @@ fn fibonacci(n) {
         b = b + a;
         a = tmp;
     }
-    print a;
+    print(a);
 }
 for (let n = 1; n <= 10; n = n + 1)
     fibonacci(n);
@@ -39,7 +39,7 @@ fn fibonacci(n) {
     if (n == 2) return 1;
     return fibonacci(n - 1) + fibonacci(n - 2);
 }
-print fibonacci(8);
+print(fibonacci(8));
 "#;
     assert_success_and_check_stdout(source, "13");
 }
@@ -48,7 +48,7 @@ print fibonacci(8);
 fn return_outside_of_function_detected_correctly() {
     let source = r#"
 fn foo() {
-    print "Hi!";
+    print("Hi!");
 }
 return;
 "#;

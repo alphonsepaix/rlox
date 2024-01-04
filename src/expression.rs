@@ -40,7 +40,7 @@ impl Debug for Object {
             Object::Str(s) => write!(f, "{s:?}"),
             Object::Number(x) => write!(f, "{x:?}"),
             Object::Bool(b) => write!(f, "{b:?}"),
-            Object::Callable(c) => write!(f, "{}", *c),
+            Object::Callable(c) => write!(f, "{}", c),
             Object::Nil => write!(f, "nil"),
         }
     }
@@ -80,7 +80,7 @@ impl Display for Object {
             Number(x) => write!(f, "{x}"),
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
-            Callable(_) => write!(f, "<callable>"),
+            Callable(c) => write!(f, "{}", *c),
         }
     }
 }
@@ -213,7 +213,15 @@ impl Expression {
                 let name = callee.to_string();
                 let callee = callee.evaluate(env)?;
                 if let Callable(f) = callee {
-                    f.call(&name, arguments, env)
+                    let arity = f.arity();
+                    let num_args = arguments.len();
+                    if num_args != arity {
+                        return Err(RuntimeError::build(format!(
+                            "`{f}`: expected {arity} argument{} but got {num_args}",
+                            if arity > 1 { 's' } else { '\0' },
+                        )));
+                    }
+                    f.call(arguments, env)
                 } else {
                     Err(RuntimeError::build(format!("{name} is not callable")))
                 }

@@ -11,17 +11,17 @@ let c = "global c";
   let b = "outer b";
   {
     let a = "inner a";
-    print a;
-    print b;
-    print c;
+    print(a);
+    print(b);
+    print(c);
   }
-  print a;
-  print b;
-  print c;
+  print(a);
+  print(b);
+  print(c);
 }
-print a;
-print b;
-print c;
+print(a);
+print(b);
+print(c);
 "#;
     let output = "
 inner a

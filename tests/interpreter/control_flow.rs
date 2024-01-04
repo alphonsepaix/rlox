@@ -7,9 +7,9 @@ fn if_statement() {
     let source = r#"
 let x = 3;
 if (x > 9) {
-    print "x > 9!";
+    print("x > 9!");
 } else {
-    print "x <= 9!";
+    print("x <= 9!");
 }
 "#;
     let output = "x <= 9!
@@ -23,7 +23,7 @@ fn for_statement() {
 let i = 0;
 for (; i < 10; i = i + 1)
     if (i > 5)
-        print i;
+        print(i);
 "#;
     let output = "
 6
@@ -38,7 +38,7 @@ for (; i < 10; i = i + 1)
 fn for_constant_expr() {
     let source = r#"
 for (let i = 0; i < 10; i = i + 1)
-    print "Alphonse";
+    print("Alphonse");
 "#;
     let output = "Alphonse\n".repeat(10);
     assert_success_and_check_stdout(source, &output);
@@ -51,7 +51,7 @@ let i = 3;
 while (i < 8) {
     i = i + 1;
     if (i > 4)
-        print i;
+        print(i);
 }
 "#;
     let output = "
@@ -69,7 +69,7 @@ fn continue_statement() {
 for (let i = 0; i < 20; i = i + 1) {
     if (i <= 10)
         continue;
-    print i;
+    print(i);
 }
 "#;
     let output = "
@@ -95,7 +95,7 @@ while (i < 10) {
     if (i >= 7)
         break;
 }
-print i;
+print(i);
 "#;
     assert_success_and_check_stdout(source, "8");
 }
@@ -138,7 +138,7 @@ for (;;) {
     }
     break;
 }
-print "Outside!";
+print("Outside!");
 "#;
     assert_success_and_check_stdout(source, "Outside!");
 }
@@ -148,7 +148,7 @@ fn infinite_loops() {
     let source = r#"
 for (;;)         // infinite loop
     ;
-print "Outside!";
+print("Outside!");
 "#;
     assert_failure(source);
 
@@ -171,7 +171,7 @@ for (let i = 0; i < n - 1; i = i + 1) {
     b = b + a;
     a = tmp;
 }
-print a;    // the n-th Fibonacci number
+print(a);    // the n-th Fibonacci number
 "#;
     assert_success_and_check_stdout(source, "34");
 }

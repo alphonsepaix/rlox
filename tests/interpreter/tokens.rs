@@ -1,7 +1,6 @@
+use crate::helpers::{assert_failure_and_check_stderr, check_scanner_error};
 use claim::assert_ok;
-use rlox::errors::LoxError::*;
 use rlox::errors::ScanErrorType::*;
-use rlox::errors::*;
 use rlox::scanner::*;
 
 #[test]
@@ -30,52 +29,34 @@ fn simple_expression_tokenized_correctly() {
 
 #[test]
 fn unterminated_string_returns_error() {
-    let input = r#"let name = "Alphonse;"#;
-    let mut scanner = Scanner::new(input);
-    let err = scanner.scan_tokens().err().unwrap();
-    assert!(matches!(
-        err,
-        Scan(ScanError {
-            r#type: UnterminatedString,
-            ..
-        })
-    ));
+    let source = r#"let name = "Alphonse;"#;
+    check_scanner_error(source, UnterminatedString);
+    let source = r#"
+let x = "Louis";
+let a = 4;
+print("Alphonse + Louis);
+"#;
+    assert_failure_and_check_stderr(source, "unterminated string");
 }
 
 #[test]
 fn invalid_number_returns_error() {
-    let input = "let x = 1253.f";
-    let mut scanner = Scanner::new(input);
-    let err = scanner.scan_tokens().err().unwrap();
-    assert!(matches!(
-        err,
-        Scan(ScanError {
-            r#type: InvalidNumber,
-            ..
-        })
-    ));
+    let source = "let x = 1253.f";
+    check_scanner_error(source, InvalidNumber);
 }
 
 #[test]
 fn invalid_expressions_return_error() {
     let cases = [
-        ("var x = 1253.f", InvalidNumber),
-        (r#"var x = 12. name = "Alphonse""#, InvalidNumber),
-        ("v@r pi = 3.415", UnexpectedCharacter),
+        ("let x = 1253.f", InvalidNumber),
+        (r#"let x = 12. name = "Alphonse""#, InvalidNumber),
+        ("let @pi = 3.415", UnexpectedCharacter),
         (
-            r#"var name = "Alphonse; var x = 3.1415"#,
+            r#"let name = "Alphonse; var x = 3.1415"#,
             UnterminatedString,
         ),
     ];
-    for (input, _expected_error_type) in cases {
-        let mut scanner = Scanner::new(input);
-        let err = scanner.scan_tokens().err().unwrap();
-        assert!(matches!(
-            err,
-            Scan(ScanError {
-                r#type: _expected_error_type,
-                ..
-            })
-        ));
+    for (source, error_type) in cases {
+        check_scanner_error(source, error_type);
     }
 }

@@ -8,7 +8,6 @@ pub enum Stmt {
         name: String,
         initializer: Option<Expression>,
     },
-    Print(Expression),
     Expr(Expression),
     Block(Vec<Stmt>),
     If {
@@ -101,10 +100,6 @@ impl Parser {
 
     fn statement(&mut self) -> LoxResult<Stmt> {
         match self.peek_type() {
-            TokenType::Print => {
-                self.advance();
-                self.print_statement()
-            }
             TokenType::Semicolon => {
                 self.advance();
                 Ok(Stmt::Null)
@@ -194,12 +189,6 @@ impl Parser {
             "expected `}` after block".to_string(),
         )?;
         Ok(statements)
-    }
-
-    fn print_statement(&mut self) -> LoxResult<Stmt> {
-        let expr = self.expression()?;
-        self.consume(TokenType::Semicolon, "expected `;` after value".to_string())?;
-        Ok(Stmt::Print(expr))
     }
 
     fn function(&mut self, kind: &str) -> LoxResult<Stmt> {
@@ -576,7 +565,6 @@ impl Parser {
                 | TokenType::For
                 | TokenType::If
                 | TokenType::While
-                | TokenType::Print
                 | TokenType::Return => return,
                 _ => self.advance(),
             }
