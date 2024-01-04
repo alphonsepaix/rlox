@@ -142,6 +142,12 @@ impl Expression {
                             op
                         ))),
                     },
+                    (Str(s1), TokenType::Plus, right) => {
+                        Ok(Str(format!("{}{}", s1, right.to_string())))
+                    }
+                    (left, TokenType::Plus, Str(s2)) => {
+                        Ok(Str(format!("{}{}", left.to_string(), s2)))
+                    }
                     _ => Err(RuntimeError::build(
                         "can't evaluate expression: unsupported operation between types"
                             .to_string(),
