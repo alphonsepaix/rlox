@@ -16,6 +16,7 @@
 //                 | breakStmt
 //                 | continueStmt
 //                 | returnStmt
+//                 | nullStmt
 //                 | block ;
 // exprStmt       -> expression ";" ;
 // ifStmt         -> "if" "(" expression ")" statement
@@ -27,7 +28,8 @@
 // printStmt      -> "print" expression ";" ;
 // breakStmt      -> "break" ";" ;
 // continueStmt   -> "continue" ";" ;
-// continueStmt   -> "return" expression? ";" ;
+// returnStmt     -> "return" expression? ";" ;
+// nullStmt       -> ";" ;
 // block          -> "{" declaration* "}" ;
 //
 // expression     -> assignment ;
@@ -80,6 +82,7 @@ pub enum Stmt {
         body: Vec<Stmt>,
         parameters: Vec<String>,
     },
+    Null,
 }
 
 pub struct Parser {
@@ -154,6 +157,10 @@ impl Parser {
             TokenType::Print => {
                 self.advance();
                 self.print_statement()
+            }
+            TokenType::Semicolon => {
+                self.advance();
+                Ok(Stmt::Null)
             }
             LeftBrace => {
                 self.advance();

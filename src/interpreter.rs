@@ -147,6 +147,7 @@ impl Interpreter {
             Stmt::Break => return Ok(Some(Signal::Break)),
             Stmt::Continue => return Ok(Some(Signal::Continue)),
             Stmt::Return(expression) => return Ok(Some(Signal::Return(expression.clone()))),
+            Stmt::Null => (),
         }
         Ok(None)
     }
