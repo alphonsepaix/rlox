@@ -1,11 +1,10 @@
 use crate::errors::{LoxResult, RuntimeError};
 use crate::interpreter::{Environment, Interpreter, Signal};
 use crate::scanner::{Token, TokenType};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::Not;
 use Expression::*;
 
-#[derive(Debug)]
 pub enum Object {
     Str(String),
     Number(f64),
@@ -15,6 +14,7 @@ pub enum Object {
         body: Vec<Stmt>,
         parameters: Vec<String>,
     },
+    Callable(Box<dyn Callable>),
     Nil,
 }
 
@@ -30,6 +30,19 @@ impl Not for Object {
     type Output = bool;
     fn not(self) -> Self::Output {
         !Into::<bool>::into(self)
+    }
+}
+
+impl Debug for Object {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Object::Str(s) => write!(f, "{s:?}"),
+            Object::Number(x) => write!(f, "{x:?}"),
+            Object::Bool(b) => write!(f, "{b:?}"),
+            Object::Function { .. } => write!(f, "<function>"),
+            Object::Callable(_) => write!(f, "<callable>"),
+            Object::Nil => write!(f, "nil"),
+        }
     }
 }
 
@@ -61,7 +74,7 @@ impl Clone for Object {
                 body: body.clone(),
                 parameters: parameters.clone(),
             },
-            Object::Nil => Object::Nil,
+            Object::Nil | Object::Callable(..) => Object::Nil,
         }
     }
 }
@@ -76,6 +89,7 @@ impl Display for Object {
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
             Function { .. } => write!(f, "<fn>"),
+            Callable(_) => write!(f, "<callable>"),
         }
     }
 }
@@ -227,7 +241,7 @@ impl Display for Expression {
     }
 }
 
-trait Callable {
+pub trait Callable {
     fn call(
         &self,
         name: &str,
