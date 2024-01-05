@@ -43,6 +43,12 @@ pub trait Callable {
             "only instances have porperties".to_string(),
         ))
     }
+
+    fn set(&mut self, _name: &str, _value: Object) -> LoxResult<()> {
+        Err(RuntimeError::build(
+            "only instances can set porperties".to_string(),
+        ))
+    }
 }
 
 pub struct Exit;
@@ -437,19 +443,19 @@ impl Instance {
 }
 
 impl Callable for Instance {
-    fn name(&self) -> &str {
-        self.base.name()
-    }
-
     fn call(&self, _objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
         todo!();
-    }
-    fn doc(&self) -> &str {
-        "A class instance."
     }
 
     fn arity(&self) -> usize {
         0
+    }
+    fn name(&self) -> &str {
+        self.base.name()
+    }
+
+    fn doc(&self) -> &str {
+        "A class instance."
     }
 
     fn r#type(&self) -> CallableType {
@@ -464,6 +470,11 @@ impl Callable for Instance {
             ))),
             Some(obj) => Ok(obj.clone()),
         }
+    }
+
+    fn set(&mut self, name: &str, value: Object) -> LoxResult<()> {
+        self.fields.insert(name.to_owned(), value);
+        Ok(())
     }
 }
 

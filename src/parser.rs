@@ -366,15 +366,19 @@ impl Parser {
     fn assignment(&mut self) -> LoxResult<Expression> {
         let expr = self.or()?;
         if self.peek_type() == TokenType::Equal {
-            if let Variable(name) = expr {
-                self.advance();
-                let value = self.assignment()?;
-                Ok(Assign(name, Box::new(value)))
-            } else {
-                Err(ParseError::build(
+            self.advance();
+            let value = self.assignment()?;
+            match expr {
+                Variable(name) => Ok(Assign(name, Box::new(value))),
+                Get { name, object } => Ok(Set {
+                    object,
+                    name,
+                    value: Box::new(value),
+                }),
+                _ => Err(ParseError::build(
                     self.peek(),
                     "invalid assignment target".to_string(),
-                ))
+                )),
             }
         } else {
             Ok(expr)

@@ -123,6 +123,11 @@ pub enum Expression {
         name: String,
         object: Box<Expression>,
     },
+    Set {
+        object: Box<Expression>,
+        name: String,
+        value: Box<Expression>,
+    },
 }
 
 impl Expression {
@@ -251,6 +256,19 @@ impl Expression {
                     Err(RuntimeError::build(format!("{name} is not callable")))
                 }
             }
+            Set {
+                object,
+                name,
+                value,
+            } => {
+                if let Callable(f) = object.evaluate(env)? {
+                    let value = value.evaluate(env)?;
+                    f.set(name, value.clone())?;
+                    Ok(value)
+                } else {
+                    Err(RuntimeError::build(format!("{name} is not callable")))
+                }
+            }
         }
     }
 }
@@ -269,6 +287,7 @@ impl Display for Expression {
             Logical { .. } => todo!(),
             Call { .. } => todo!(),
             Get { .. } => todo!(),
+            Set { .. } => todo!(),
         };
         write!(f, "{s}")
     }
