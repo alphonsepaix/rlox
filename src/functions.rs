@@ -344,43 +344,47 @@ impl Callable for Dir {
     }
 }
 
+#[derive(Clone)]
 pub struct UserDefinedFunction {
     name: String,
     body: Vec<Stmt>,
     parameters: Vec<String>,
+    closure: Environment,
 }
 
 impl UserDefinedFunction {
-    pub fn new(name: String, body: Vec<Stmt>, parameters: Vec<String>) -> Self {
+    pub fn new(
+        name: String,
+        body: Vec<Stmt>,
+        parameters: Vec<String>,
+        closure: Environment,
+    ) -> Self {
         Self {
             name,
             body,
             parameters,
+            closure,
         }
     }
 }
 
 impl Callable for UserDefinedFunction {
-    fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object> {
-        env.enter_block();
+    fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let mut env = self.closure.clone();
+        env.define(
+            &self.name,
+            Some(Object::Callable(Rc::new(RefCell::new(self.clone())))),
+        );
         self.parameters
             .iter()
             .zip(objects)
             .for_each(|(param, value)| env.define(param, Some(value)));
         let interpreter = Interpreter::new();
-        let mut return_value = Object::Nil;
-        if let Some(Signal::Return(Some(expr))) = interpreter.interpret(env, &self.body)? {
-            let eval = expr.evaluate(env);
-            return_value = match eval {
-                Ok(obj) => obj,
-                Err(e) => {
-                    env.exit_block();
-                    return Err(e);
-                }
-            };
+        if let Some(Signal::Return(Some(expr))) = interpreter.interpret(&mut env, &self.body)? {
+            expr.evaluate(&mut env)
+        } else {
+            Ok(Object::Nil)
         }
-        env.exit_block();
-        Ok(return_value)
     }
 
     fn arity(&self) -> usize {
@@ -399,11 +403,16 @@ impl Callable for UserDefinedFunction {
 #[derive(Clone)]
 pub struct UserDefinedStruct {
     name: String,
+    methods: HashMap<String, UserDefinedFunction>,
 }
 
 impl UserDefinedStruct {
-    pub fn new(name: String) -> Self {
-        Self { name }
+    pub fn new(name: String, methods: HashMap<String, UserDefinedFunction>) -> Self {
+        Self { name, methods }
+    }
+
+    fn find_method(&self, name: &str) -> Option<UserDefinedFunction> {
+        self.methods.get(name).cloned()
     }
 }
 
@@ -466,12 +475,15 @@ impl Callable for Instance {
     }
 
     fn get(&self, name: &str) -> LoxResult<Object> {
-        match self.fields.get(name) {
-            None => Err(RuntimeError::build(format!(
+        if let Some(obj) = self.fields.get(name) {
+            Ok(obj.clone())
+        } else if let Some(method) = self.base.find_method(name) {
+            Ok(Object::Callable(Rc::new(RefCell::new(method))))
+        } else {
+            Err(RuntimeError::build(format!(
                 "undefined property `{}`",
                 name
-            ))),
-            Some(obj) => Ok(obj.clone()),
+            )))
         }
     }
 

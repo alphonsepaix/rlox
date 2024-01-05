@@ -496,27 +496,27 @@ impl Parser {
     }
 
     fn call(&mut self) -> LoxResult<Expression> {
-        let callee = self.primary()?;
+        let mut callee = self.primary()?;
 
         // a function can return another function
-        let res = {
+        loop {
             if self.peek_type() == TokenType::LeftParen {
                 self.advance();
-                self.finish_call(callee)?
+                callee = self.finish_call(callee)?;
             } else if self.peek_type() == TokenType::Dot {
                 self.advance();
                 let name =
                     self.consume_identifier("expected property name after `.`".to_string())?;
-                Get {
+                callee = Get {
                     name,
                     object: Box::new(callee),
                 }
             } else {
-                callee
-            }
-        };
+                break;
+            };
+        }
 
-        Ok(res)
+        Ok(callee)
     }
 
     fn finish_call(&mut self, callee: Expression) -> LoxResult<Expression> {

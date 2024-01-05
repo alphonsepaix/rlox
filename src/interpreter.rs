@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Environment(Vec<HashMap<String, Option<Object>>>);
 
 impl Default for Environment {
@@ -159,7 +159,12 @@ impl Interpreter {
                 body,
                 parameters,
             } => {
-                let func = UserDefinedFunction::new(name.clone(), body.clone(), parameters.clone());
+                let func = UserDefinedFunction::new(
+                    name.clone(),
+                    body.clone(),
+                    parameters.clone(),
+                    env.clone(),
+                );
                 env.define(name, Some(Object::Callable(Rc::new(RefCell::new(func)))));
             }
             Stmt::Block(block) => {
@@ -210,8 +215,29 @@ impl Interpreter {
             Stmt::Break => return Ok(Some(Signal::Break)),
             Stmt::Continue => return Ok(Some(Signal::Continue)),
             Stmt::Return(expression) => return Ok(Some(Signal::Return(expression.clone()))),
-            Stmt::Class { name, .. } => {
-                let cl = UserDefinedStruct::new(name.to_owned());
+            Stmt::Class { name, methods } => {
+                let mut class_methods = HashMap::new();
+                for method in methods {
+                    if let Stmt::Function {
+                        name,
+                        body,
+                        parameters,
+                    } = method
+                    {
+                        class_methods.insert(
+                            name.to_owned(),
+                            UserDefinedFunction::new(
+                                name.clone(),
+                                body.clone(),
+                                parameters.clone(),
+                                env.clone(),
+                            ),
+                        );
+                    } else {
+                        panic!("expected a function");
+                    }
+                }
+                let cl = UserDefinedStruct::new(name.to_owned(), class_methods);
                 env.define(name, Some(Object::Callable(Rc::new(RefCell::new(cl)))));
             }
             Stmt::Null => (),

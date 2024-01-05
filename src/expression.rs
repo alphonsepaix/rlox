@@ -248,14 +248,18 @@ impl Expression {
                         .collect::<Result<Vec<_>, _>>()?;
                     f.borrow().call(objects, env)
                 } else {
-                    Err(RuntimeError::build(format!("{name} is not callable")))
+                    Err(RuntimeError::build(format!(
+                        "{name} is not is not callable"
+                    )))
                 }
             }
             Get { name, object } => {
                 if let Callable(f) = object.evaluate(env)? {
                     f.borrow().get(name)
                 } else {
-                    Err(RuntimeError::build(format!("{name} is not callable")))
+                    Err(RuntimeError::build(format!(
+                        "{name} is not is not callable"
+                    )))
                 }
             }
             Set {
@@ -268,7 +272,7 @@ impl Expression {
                     f.borrow_mut().set(name, value.clone())?;
                     Ok(value)
                 } else {
-                    Err(RuntimeError::build(format!("{name} is not callable")))
+                    Err(RuntimeError::build(format!("{name} is not not callable")))
                 }
             }
         }
@@ -286,10 +290,14 @@ impl Display for Expression {
             Grouping(expression) => format!("(group {})", expression),
             Variable(name) => name.to_owned(),
             Assign(_, expression) => expression.to_string(),
-            Logical { .. } => todo!(),
-            Call { .. } => todo!(),
-            Get { .. } => todo!(),
-            Set { .. } => todo!(),
+            Logical { left, op, right } => format!("{} {} {}", left, op.lexeme, right),
+            Call { callee, arguments } => format!("{}({:?})", callee, arguments),
+            Get { name, object } => format!("get: {}.{}", object, name),
+            Set {
+                object,
+                name,
+                value,
+            } => format!("set: {}.{} = {}", object, name, value),
         };
         write!(f, "{s}")
     }
