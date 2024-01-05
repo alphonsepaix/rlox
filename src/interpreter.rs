@@ -182,7 +182,7 @@ impl Interpreter {
             Stmt::Break => return Ok(Some(Signal::Break)),
             Stmt::Continue => return Ok(Some(Signal::Continue)),
             Stmt::Return(expression) => return Ok(Some(Signal::Return(expression.clone()))),
-            Stmt::Class { name, methods } => {
+            Stmt::Class { name, .. } => {
                 let cl = UserDefinedStruct::new(name.to_owned());
                 env.define(name, Some(Object::Callable(Rc::new(cl))));
             }

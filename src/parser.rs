@@ -499,6 +499,14 @@ impl Parser {
             if self.peek_type() == TokenType::LeftParen {
                 self.advance();
                 self.finish_call(callee)?
+            } else if self.peek_type() == TokenType::Dot {
+                self.advance();
+                let name =
+                    self.consume_identifier("expected property name after `.`".to_string())?;
+                Get {
+                    name,
+                    object: Box::new(callee),
+                }
             } else {
                 callee
             }

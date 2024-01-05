@@ -119,6 +119,10 @@ pub enum Expression {
         callee: Box<Expression>,
         arguments: Vec<Expression>,
     },
+    Get {
+        name: String,
+        object: Box<Expression>,
+    },
 }
 
 impl Expression {
@@ -240,6 +244,13 @@ impl Expression {
                     Err(RuntimeError::build(format!("{name} is not callable")))
                 }
             }
+            Get { name, object } => {
+                if let Callable(f) = object.evaluate(env)? {
+                    f.get(name)
+                } else {
+                    Err(RuntimeError::build(format!("{name} is not callable")))
+                }
+            }
         }
     }
 }
@@ -257,6 +268,7 @@ impl Display for Expression {
             Assign(_, expression) => expression.to_string(),
             Logical { .. } => todo!(),
             Call { .. } => todo!(),
+            Get { .. } => todo!(),
         };
         write!(f, "{s}")
     }

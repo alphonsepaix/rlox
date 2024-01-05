@@ -3,6 +3,7 @@ use crate::expression::Object;
 use crate::interpreter::{Environment, Interpreter, Signal};
 use crate::parser::Stmt;
 use rand::{thread_rng, Rng};
+use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::process;
 use std::rc::Rc;
@@ -36,6 +37,12 @@ pub trait Callable {
     }
 
     fn r#type(&self) -> CallableType;
+
+    fn get(&self, _name: &str) -> LoxResult<Object> {
+        Err(RuntimeError::build(
+            "only instances have porperties".to_string(),
+        ))
+    }
 }
 
 pub struct Exit;
@@ -394,7 +401,7 @@ impl UserDefinedStruct {
 }
 
 impl Callable for UserDefinedStruct {
-    fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object> {
+    fn call(&self, _objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
         Ok(Object::Callable(Rc::new(Instance::new(self.clone()))))
     }
 
@@ -417,11 +424,15 @@ impl Callable for UserDefinedStruct {
 
 pub struct Instance {
     base: UserDefinedStruct,
+    fields: HashMap<String, Object>,
 }
 
 impl Instance {
     pub fn new(base: UserDefinedStruct) -> Instance {
-        Self { base }
+        Self {
+            base,
+            fields: HashMap::new(),
+        }
     }
 }
 
@@ -430,7 +441,7 @@ impl Callable for Instance {
         self.base.name()
     }
 
-    fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object> {
+    fn call(&self, _objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
         todo!();
     }
     fn doc(&self) -> &str {
@@ -443,6 +454,16 @@ impl Callable for Instance {
 
     fn r#type(&self) -> CallableType {
         CallableType::Instance
+    }
+
+    fn get(&self, name: &str) -> LoxResult<Object> {
+        match self.fields.get(name) {
+            None => Err(RuntimeError::build(format!(
+                "undefined property `{}`",
+                name
+            ))),
+            Some(obj) => Ok(obj.clone()),
+        }
     }
 }
 
