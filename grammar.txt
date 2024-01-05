@@ -14,9 +14,11 @@ program         > declaration* EOF ;
 
 declaration     > varDecl
                 | funDecl
+                | classDecl
                 | statement ;
 varDecl         > "var" IDENTIFIER ( "=" expression )? ";" ;
 funDecl         > "fun" function ;
+classDecl       > "class" IDENTIFIER "{" ( "fn" function )* "}" ;
 function        > IDENTIFIER "(" parameters? ")" block ;
 parameters      > IDENTIFIER ( "," IDENTIFIER )* ;
 
@@ -37,7 +39,6 @@ whileStmt       > "while" "(" expression ")" statement ;
 forStmt         > "for" "(" ( varDecl | exprStmt | ";" )
                   expression? ";"
                   expression? ")" statement ;
-printStmt       > "print" expression ";" ;
 breakStmt       > "break" ";" ;
 continueStmt    > "continue" ";" ;
 returnStmt      > "return" expression? ";" ;

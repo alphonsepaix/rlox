@@ -5,11 +5,13 @@ use crate::parser::Stmt;
 use rand::{thread_rng, Rng};
 use std::fmt::{Display, Formatter};
 use std::process;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub enum CallableType {
     Function,
     Class,
+    Instance,
 }
 
 impl Display for CallableType {
@@ -17,6 +19,7 @@ impl Display for CallableType {
         match self {
             CallableType::Function => write!(f, "fn"),
             CallableType::Class => write!(f, "class"),
+            CallableType::Instance => write!(f, "instance"),
         }
     }
 }
@@ -376,6 +379,70 @@ impl Callable for UserDefinedFunction {
 
     fn r#type(&self) -> CallableType {
         CallableType::Function
+    }
+}
+
+#[derive(Clone)]
+pub struct UserDefinedStruct {
+    name: String,
+}
+
+impl UserDefinedStruct {
+    pub fn new(name: String) -> Self {
+        Self { name }
+    }
+}
+
+impl Callable for UserDefinedStruct {
+    fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object> {
+        Ok(Object::Callable(Rc::new(Instance::new(self.clone()))))
+    }
+
+    fn arity(&self) -> usize {
+        0
+    }
+
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn doc(&self) -> &str {
+        "No documentation available."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Class
+    }
+}
+
+pub struct Instance {
+    base: UserDefinedStruct,
+}
+
+impl Instance {
+    pub fn new(base: UserDefinedStruct) -> Instance {
+        Self { base }
+    }
+}
+
+impl Callable for Instance {
+    fn name(&self) -> &str {
+        self.base.name()
+    }
+
+    fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object> {
+        todo!();
+    }
+    fn doc(&self) -> &str {
+        "A class instance."
+    }
+
+    fn arity(&self) -> usize {
+        0
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Instance
     }
 }
 

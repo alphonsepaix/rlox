@@ -28,6 +28,10 @@ pub enum Stmt {
         body: Vec<Stmt>,
         parameters: Vec<String>,
     },
+    Class {
+        name: String,
+        methods: Vec<Stmt>,
+    },
     Null,
 }
 
@@ -68,6 +72,10 @@ impl Parser {
                 let res = self.function("function");
                 self.enclosing_funcs -= 1;
                 res
+            }
+            TokenType::Class => {
+                self.advance();
+                self.class_declaration()
             }
             _ => self.statement(),
         };
@@ -229,6 +237,28 @@ impl Parser {
             parameters,
             body,
         })
+    }
+
+    fn class_declaration(&mut self) -> LoxResult<Stmt> {
+        let name = self.consume_identifier("expected class name".to_string())?;
+        self.consume(
+            TokenType::LeftBrace,
+            "expected `{` after class name".to_string(),
+        )?;
+        let mut methods = vec![];
+        while !matches!(self.peek_type(), TokenType::RightBrace | TokenType::Eof) {
+            self.consume(
+                TokenType::Fn,
+                "expected `fn` before method definition".to_string(),
+            )?;
+            methods.push(self.function("method")?);
+        }
+        self.consume(
+            TokenType::RightBrace,
+            "expected `}` after class body".to_string(),
+        )?;
+
+        Ok(Stmt::Class { name, methods })
     }
 
     fn if_statement(&mut self) -> LoxResult<Stmt> {

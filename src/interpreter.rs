@@ -2,6 +2,7 @@ use crate::errors::{LoxResult, RuntimeError};
 use crate::expression::{Expression, Object};
 use crate::functions::{
     Clock, Dir, Exit, Help, Print, Quit, Rand, Randint, Round, Type, UserDefinedFunction,
+    UserDefinedStruct,
 };
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
@@ -181,6 +182,10 @@ impl Interpreter {
             Stmt::Break => return Ok(Some(Signal::Break)),
             Stmt::Continue => return Ok(Some(Signal::Continue)),
             Stmt::Return(expression) => return Ok(Some(Signal::Return(expression.clone()))),
+            Stmt::Class { name, methods } => {
+                let cl = UserDefinedStruct::new(name.to_owned());
+                env.define(name, Some(Object::Callable(Rc::new(cl))));
+            }
             Stmt::Null => (),
         }
         Ok(None)
