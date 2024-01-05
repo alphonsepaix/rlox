@@ -19,6 +19,16 @@ impl Object {
     pub fn callable(&self) -> bool {
         matches!(self, Object::Callable(..))
     }
+
+    pub fn r#type(&self) -> String {
+        match self {
+            Object::Str(_) => "<string> object".to_string(),
+            Object::Number(_) => "<f64> object".to_string(),
+            Object::Bool(_) => "<bool> object".to_string(),
+            Object::Callable(f) => format!("<{}> object", f.r#type()),
+            Object::Nil => "<nil> object".to_string(),
+        }
+    }
 }
 
 impl From<Object> for bool {

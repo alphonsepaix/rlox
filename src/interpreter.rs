@@ -1,6 +1,8 @@
 use crate::errors::{LoxResult, RuntimeError};
 use crate::expression::{Expression, Object};
-use crate::functions::{Clock, Exit, Help, Print, Quit, UserDefinedFunction};
+use crate::functions::{
+    Clock, Dir, Exit, Help, Print, Quit, Rand, Randint, Round, Type, UserDefinedFunction,
+};
 use crate::parser::Stmt;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
@@ -24,6 +26,14 @@ impl Environment {
         map.insert("help".to_string(), Some(Object::Callable(Rc::new(Help))));
         map.insert("exit".to_string(), Some(Object::Callable(Rc::new(Exit))));
         map.insert("quit".to_string(), Some(Object::Callable(Rc::new(Quit))));
+        map.insert("type".to_string(), Some(Object::Callable(Rc::new(Type))));
+        map.insert("dir".to_string(), Some(Object::Callable(Rc::new(Dir))));
+        map.insert("rand".to_string(), Some(Object::Callable(Rc::new(Rand))));
+        map.insert(
+            "randint".to_string(),
+            Some(Object::Callable(Rc::new(Randint))),
+        );
+        map.insert("round".to_string(), Some(Object::Callable(Rc::new(Round))));
         Self(vec![map])
     }
 
@@ -53,6 +63,18 @@ impl Environment {
         }
 
         Err(RuntimeError::build(format!("name `{name}` is not defined")))
+    }
+
+    pub fn last(&self) -> &HashMap<String, Option<Object>> {
+        self.0
+            .last()
+            .expect("should at least contain the global scope")
+    }
+
+    pub fn last_mut(&mut self) -> &mut HashMap<String, Option<Object>> {
+        self.0
+            .last_mut()
+            .expect("should at least contain the global scope")
     }
 
     pub fn enter_block(&mut self) {

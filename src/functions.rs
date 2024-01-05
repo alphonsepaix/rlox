@@ -2,9 +2,24 @@ use crate::errors::{LoxError, LoxResult, RuntimeError};
 use crate::expression::Object;
 use crate::interpreter::{Environment, Interpreter, Signal};
 use crate::parser::Stmt;
+use rand::{thread_rng, Rng};
 use std::fmt::{Display, Formatter};
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+pub enum CallableType {
+    Function,
+    Class,
+}
+
+impl Display for CallableType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CallableType::Function => write!(f, "fn"),
+            CallableType::Class => write!(f, "class"),
+        }
+    }
+}
 
 pub trait Callable {
     fn call(&self, objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object>;
@@ -16,6 +31,8 @@ pub trait Callable {
     fn doc(&self) -> &str {
         "No documentation available."
     }
+
+    fn r#type(&self) -> CallableType;
 }
 
 pub struct Exit;
@@ -40,11 +57,15 @@ impl Callable for Exit {
     }
 
     fn name(&self) -> &str {
-        "<fn exit>"
+        "exit"
     }
 
     fn doc(&self) -> &str {
         "Terminates the current process with the specified exit code."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
     }
 }
 
@@ -60,11 +81,15 @@ impl Callable for Quit {
     }
 
     fn name(&self) -> &str {
-        "<fn quit>"
+        "quit"
     }
 
     fn doc(&self) -> &str {
         "Terminates the current process with an exit code of 0."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
     }
 }
 
@@ -83,11 +108,40 @@ impl Callable for Clock {
     }
 
     fn name(&self) -> &str {
-        "<fn clock>"
+        "clock"
     }
 
     fn doc(&self) -> &str {
         "Returns the amount of time elapsed since the Unix epoch."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
+    }
+}
+
+pub struct Type;
+
+impl Callable for Type {
+    fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let value = objects.first().expect("expected one argument");
+        println!("{}", value.r#type());
+        Ok(Object::Nil)
+    }
+
+    fn arity(&self) -> usize {
+        1
+    }
+    fn name(&self) -> &str {
+        "type"
+    }
+
+    fn doc(&self) -> &str {
+        "Prints the type of the given object."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
     }
 }
 
@@ -97,11 +151,8 @@ impl Callable for Help {
     fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
         let value = objects.first().expect("expected one argument");
         match value {
-            Object::Str(_) => println!("<string> object"),
-            Object::Number(_) => println!("<f64> object"),
-            Object::Bool(_) => println!("<bool> object"),
             Object::Callable(f) => println!("{}\n\t{}", f.name(), f.doc()),
-            Object::Nil => println!("<nil> object"),
+            _ => println!("No documentation available"),
         }
         Ok(Object::Nil)
     }
@@ -110,11 +161,116 @@ impl Callable for Help {
         1
     }
     fn name(&self) -> &str {
-        "<fn help>"
+        "help"
     }
 
     fn doc(&self) -> &str {
         "Prints the documentation of the given object."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
+    }
+}
+
+pub struct Rand;
+
+impl Callable for Rand {
+    fn call(&self, _objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let x = thread_rng().gen_range(0.0..=1.0);
+        Ok(Object::Number(x))
+    }
+
+    fn arity(&self) -> usize {
+        0
+    }
+    fn name(&self) -> &str {
+        "rand"
+    }
+
+    fn doc(&self) -> &str {
+        "Returns a number between 0 and 1."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
+    }
+}
+
+pub struct Randint;
+
+impl Callable for Randint {
+    fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let mut iter = objects.into_iter();
+        let low = iter.next().expect("expected low bound");
+        let high = iter.next().expect("expected high bound");
+        if let (Object::Number(low), Object::Number(high)) = (low, high) {
+            if low.fract() == 0.0 && high.fract() == 0.0 {
+                let low = low as i32;
+                let high = high as i32;
+                let rand = thread_rng().gen_range(low..=high);
+                return Ok(Object::Number(rand as f64));
+            }
+        }
+        Err(RuntimeError::build(
+            "randint: expected two integers arguments".to_string(),
+        ))
+    }
+
+    fn arity(&self) -> usize {
+        2
+    }
+    fn name(&self) -> &str {
+        "randint"
+    }
+
+    fn doc(&self) -> &str {
+        "Returns a integer between the two provided arguments."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
+    }
+}
+
+pub struct Round;
+
+impl Callable for Round {
+    fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
+        let mut iter = objects.into_iter();
+        let value = iter.next().expect("expected a number");
+        let precision = iter.next().expect("expected an integer");
+        if let (Object::Number(value), Object::Number(precision)) = (value, precision) {
+            if precision.fract() == 0.0 {
+                let precision = precision as u32;
+                let pow = u32::pow(10, precision) as f64;
+                let res = (value * pow).round() / pow;
+                Ok(Object::Number(res))
+            } else {
+                Err(RuntimeError::build(
+                    "round: precision must be an integer".to_string(),
+                ))
+            }
+        } else {
+            Err(RuntimeError::build(
+                "round: arguments one number and one integer".to_string(),
+            ))
+        }
+    }
+
+    fn arity(&self) -> usize {
+        2
+    }
+    fn name(&self) -> &str {
+        "round"
+    }
+
+    fn doc(&self) -> &str {
+        "Rounds a number to a given precision in decimal digits."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
     }
 }
 
@@ -132,11 +288,42 @@ impl Callable for Print {
     }
 
     fn name(&self) -> &str {
-        "<fn print>"
+        "print"
     }
 
     fn doc(&self) -> &str {
         "Prints its argument to the standard output, with a newline."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
+    }
+}
+
+pub struct Dir;
+
+impl Callable for Dir {
+    fn call(&self, _objects: Vec<Object>, env: &mut Environment) -> LoxResult<Object> {
+        env.last_mut()
+            .iter()
+            .for_each(|(name, _)| println!("{name}"));
+        Ok(Object::Nil)
+    }
+
+    fn arity(&self) -> usize {
+        0
+    }
+
+    fn name(&self) -> &str {
+        "dir"
+    }
+
+    fn doc(&self) -> &str {
+        "Prints all the names in the current scope."
+    }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
     }
 }
 
@@ -186,10 +373,14 @@ impl Callable for UserDefinedFunction {
     fn name(&self) -> &str {
         &self.name
     }
+
+    fn r#type(&self) -> CallableType {
+        CallableType::Function
+    }
 }
 
 impl Display for dyn Callable {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.name())
+        write!(f, "<{} {}>", self.r#type(), self.name())
     }
 }
