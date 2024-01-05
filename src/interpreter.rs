@@ -5,6 +5,7 @@ use crate::functions::{
     UserDefinedStruct,
 };
 use crate::parser::Stmt;
+use std::cell::RefCell;
 use std::collections::hash_map::Entry::Occupied;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -22,19 +23,46 @@ impl Default for Environment {
 impl Environment {
     pub fn new() -> Self {
         let mut map = HashMap::new();
-        map.insert("clock".to_string(), Some(Object::Callable(Rc::new(Clock))));
-        map.insert("print".to_string(), Some(Object::Callable(Rc::new(Print))));
-        map.insert("help".to_string(), Some(Object::Callable(Rc::new(Help))));
-        map.insert("exit".to_string(), Some(Object::Callable(Rc::new(Exit))));
-        map.insert("quit".to_string(), Some(Object::Callable(Rc::new(Quit))));
-        map.insert("type".to_string(), Some(Object::Callable(Rc::new(Type))));
-        map.insert("dir".to_string(), Some(Object::Callable(Rc::new(Dir))));
-        map.insert("rand".to_string(), Some(Object::Callable(Rc::new(Rand))));
+        map.insert(
+            "clock".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Clock)))),
+        );
+        map.insert(
+            "print".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Print)))),
+        );
+        map.insert(
+            "help".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Help)))),
+        );
+        map.insert(
+            "exit".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Exit)))),
+        );
+        map.insert(
+            "quit".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Quit)))),
+        );
+        map.insert(
+            "type".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Type)))),
+        );
+        map.insert(
+            "dir".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Dir)))),
+        );
+        map.insert(
+            "rand".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Rand)))),
+        );
         map.insert(
             "randint".to_string(),
-            Some(Object::Callable(Rc::new(Randint))),
+            Some(Object::Callable(Rc::new(RefCell::new(Randint)))),
         );
-        map.insert("round".to_string(), Some(Object::Callable(Rc::new(Round))));
+        map.insert(
+            "round".to_string(),
+            Some(Object::Callable(Rc::new(RefCell::new(Round)))),
+        );
         Self(vec![map])
     }
 
@@ -132,7 +160,7 @@ impl Interpreter {
                 parameters,
             } => {
                 let func = UserDefinedFunction::new(name.clone(), body.clone(), parameters.clone());
-                env.define(name, Some(Object::Callable(Rc::new(func))))
+                env.define(name, Some(Object::Callable(Rc::new(RefCell::new(func)))));
             }
             Stmt::Block(block) => {
                 env.enter_block();
@@ -184,7 +212,7 @@ impl Interpreter {
             Stmt::Return(expression) => return Ok(Some(Signal::Return(expression.clone()))),
             Stmt::Class { name, .. } => {
                 let cl = UserDefinedStruct::new(name.to_owned());
-                env.define(name, Some(Object::Callable(Rc::new(cl))));
+                env.define(name, Some(Object::Callable(Rc::new(RefCell::new(cl)))));
             }
             Stmt::Null => (),
         }

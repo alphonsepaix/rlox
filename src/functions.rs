@@ -3,6 +3,7 @@ use crate::expression::Object;
 use crate::interpreter::{Environment, Interpreter, Signal};
 use crate::parser::Stmt;
 use rand::{thread_rng, Rng};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::process;
@@ -167,7 +168,7 @@ impl Callable for Help {
     fn call(&self, objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
         let value = objects.first().expect("expected one argument");
         match value {
-            Object::Callable(f) => println!("{}\n\t{}", f.name(), f.doc()),
+            Object::Callable(f) => println!("{}\n\t{}", f.borrow().name(), f.borrow().doc()),
             _ => println!("No documentation available"),
         }
         Ok(Object::Nil)
@@ -408,7 +409,9 @@ impl UserDefinedStruct {
 
 impl Callable for UserDefinedStruct {
     fn call(&self, _objects: Vec<Object>, _env: &mut Environment) -> LoxResult<Object> {
-        Ok(Object::Callable(Rc::new(Instance::new(self.clone()))))
+        Ok(Object::Callable(Rc::new(RefCell::new(Instance::new(
+            self.clone(),
+        )))))
     }
 
     fn arity(&self) -> usize {

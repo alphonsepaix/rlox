@@ -2,6 +2,7 @@ use crate::errors::{LoxResult, RuntimeError};
 use crate::functions::Callable;
 use crate::interpreter::Environment;
 use crate::scanner::{Token, TokenType};
+use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Not;
 use std::rc::Rc;
@@ -11,7 +12,7 @@ pub enum Object {
     Str(String),
     Number(f64),
     Bool(bool),
-    Callable(Rc<dyn Callable>),
+    Callable(Rc<RefCell<dyn Callable>>),
     Nil,
 }
 
@@ -25,7 +26,7 @@ impl Object {
             Object::Str(_) => "<string> object".to_string(),
             Object::Number(_) => "<f64> object".to_string(),
             Object::Bool(_) => "<bool> object".to_string(),
-            Object::Callable(f) => format!("<{}> object", f.r#type()),
+            Object::Callable(f) => format!("<{}> object", f.borrow().r#type()),
             Object::Nil => "<nil> object".to_string(),
         }
     }
@@ -50,7 +51,7 @@ impl Debug for Object {
             Object::Str(s) => write!(f, "{s:?}"),
             Object::Number(x) => write!(f, "{x:?}"),
             Object::Bool(b) => write!(f, "{b:?}"),
-            Object::Callable(c) => write!(f, "{}", c),
+            Object::Callable(c) => write!(f, "{}", c.borrow()),
             Object::Nil => write!(f, "nil"),
         }
     }
@@ -90,7 +91,7 @@ impl Display for Object {
             Number(x) => write!(f, "{x}"),
             Bool(b) => write!(f, "{b}"),
             Nil => write!(f, "nil"),
-            Callable(c) => write!(f, "{}", *c),
+            Callable(c) => write!(f, "{}", c.borrow()),
         }
     }
 }
@@ -232,11 +233,12 @@ impl Expression {
                 let name = callee.to_string();
                 let callee = callee.evaluate(env)?;
                 if let Callable(f) = callee {
-                    let arity = f.arity();
+                    let arity = f.borrow().arity();
                     let num_args = arguments.len();
                     if num_args != arity {
                         return Err(RuntimeError::build(format!(
-                            "`{f}`: expected {arity} argument{} but got {num_args}",
+                            "`{}`: expected {arity} argument{} but got {num_args}",
+                            f.borrow(),
                             if arity > 1 { 's' } else { '\0' },
                         )));
                     }
@@ -244,14 +246,14 @@ impl Expression {
                         .iter()
                         .map(|arg| arg.evaluate(env))
                         .collect::<Result<Vec<_>, _>>()?;
-                    f.call(objects, env)
+                    f.borrow().call(objects, env)
                 } else {
                     Err(RuntimeError::build(format!("{name} is not callable")))
                 }
             }
             Get { name, object } => {
                 if let Callable(f) = object.evaluate(env)? {
-                    f.get(name)
+                    f.borrow().get(name)
                 } else {
                     Err(RuntimeError::build(format!("{name} is not callable")))
                 }
@@ -263,7 +265,7 @@ impl Expression {
             } => {
                 if let Callable(f) = object.evaluate(env)? {
                     let value = value.evaluate(env)?;
-                    f.set(name, value.clone())?;
+                    f.borrow_mut().set(name, value.clone())?;
                     Ok(value)
                 } else {
                     Err(RuntimeError::build(format!("{name} is not callable")))
