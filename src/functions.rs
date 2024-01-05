@@ -366,6 +366,19 @@ impl UserDefinedFunction {
             closure,
         }
     }
+
+    fn bind(&self, obj: &Instance) -> Self {
+        let mut method = self.clone();
+        for (name, object) in &obj.fields {
+            method.closure.define(name, Some(object.clone()));
+        }
+        method.closure.define(
+            // this should be a reference to the object, not a copy of it
+            "this",
+            Some(Object::Callable(Rc::new(RefCell::new(obj.clone())))),
+        );
+        method
+    }
 }
 
 impl Callable for UserDefinedFunction {
@@ -440,6 +453,7 @@ impl Callable for UserDefinedStruct {
     }
 }
 
+#[derive(Clone)]
 pub struct Instance {
     base: UserDefinedStruct,
     fields: HashMap<String, Object>,
@@ -478,6 +492,7 @@ impl Callable for Instance {
         if let Some(obj) = self.fields.get(name) {
             Ok(obj.clone())
         } else if let Some(method) = self.base.find_method(name) {
+            let method = method.bind(self);
             Ok(Object::Callable(Rc::new(RefCell::new(method))))
         } else {
             Err(RuntimeError::build(format!(

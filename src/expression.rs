@@ -129,6 +129,7 @@ pub enum Expression {
         name: String,
         value: Box<Expression>,
     },
+    This,
 }
 
 impl Expression {
@@ -275,6 +276,7 @@ impl Expression {
                     Err(RuntimeError::build(format!("{name} is not not callable")))
                 }
             }
+            This => todo!(),
         }
     }
 }
@@ -298,6 +300,7 @@ impl Display for Expression {
                 name,
                 value,
             } => format!("set: {}.{} = {}", object, name, value),
+            This => todo!(),
         };
         write!(f, "{s}")
     }

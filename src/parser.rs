@@ -40,6 +40,7 @@ pub struct Parser {
     current: usize,
     enclosing_loops: usize,
     enclosing_funcs: usize,
+    enclosing_classes: usize,
 }
 
 impl Parser {
@@ -49,6 +50,7 @@ impl Parser {
             current: 0,
             enclosing_loops: 0,
             enclosing_funcs: 0,
+            enclosing_classes: 0,
         }
     }
 
@@ -74,8 +76,11 @@ impl Parser {
                 res
             }
             TokenType::Class => {
+                self.enclosing_classes += 1;
                 self.advance();
-                self.class_declaration()
+                let res = self.class_declaration();
+                self.enclosing_classes -= 1;
+                res
             }
             _ => self.statement(),
         };
@@ -567,6 +572,17 @@ impl Parser {
             TokenType::Identifier(name) => {
                 self.advance();
                 Ok(Variable(name))
+            }
+            TokenType::This => {
+                self.advance();
+                if self.enclosing_loops == 0 {
+                    Err(ParseError::build(
+                        self.peek(),
+                        "`this` outside class".to_string(),
+                    ))
+                } else {
+                    Ok(Variable("this".to_string()))
+                }
             }
             _ => Err(ParseError::build(
                 self.peek(),
